@@ -1,10 +1,60 @@
 // winsock.t.cpp - test winsock
 #include <cassert>
 #include <cstdio>
+#include <coroutine>
+#include <future>
 #include "winsock.h"
 
 using namespace winsock;
 
+struct coroutine_type {
+	struct promise_type {
+		int _value;
+		coroutine_type get_return_object()
+		{
+			return { *this };
+		}
+		auto initial_suspend()
+		{
+			return std::suspend_never{};
+		}
+		auto final_suspend()
+		{
+			return std::suspend_never{};
+		}
+		void return_value(int val)
+		{
+			_value = val;
+		}
+		void unhandled_exception()
+		{
+			std::terminate();
+		}
+	};
+	using HDL = std::coroutine_handle<promise_type>;
+	coroutine_type() = default;
+	coroutine_type(const coroutine_type&) = delete;
+	~coroutine_type()
+	{
+		_coro.destroy(); 
+	}
+private:
+	coroutine_type(promise_type& p)
+		: _coro(HDL::from_promise(p))
+	{}
+	std::coroutine_handle<promise_type> _coro; 
+};
+coroutine_type a()
+{
+	co_await std::suspend_always{};
+	co_return 3;
+}
+/*
+coroutine_type b()
+{
+
+}
+*/
 struct bl {
 	const char* buf;
 	int len;
@@ -66,8 +116,8 @@ int test_hints()
 	winsock::socket s;
 	auto hint = s.hints();
 	//assert((int)AF::UNIX == hint.ai_family);
-	//auto family = getsockopt<SO::TYPE>(s);
-	auto type = getsockopt<SO::TYPE>(s);
+	//auto family = getsockopt<GET_SO::TYPE>(s);
+	auto type = sockopt<GET_SO::TYPE>(s);
 
 	return 0;
 }

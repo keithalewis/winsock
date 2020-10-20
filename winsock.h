@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <ws2def.h>
 #include <compare>
 #include <cstring>
 #include <iostream>
@@ -58,13 +59,100 @@ namespace winsock {
 	};
 
 	/// protocol IPPROTO
+	enum class IPPROTO : int {
+		HOPOPTS = IPPROTO_HOPOPTS,
+		ICMP = IPPROTO_ICMP,
+		IGMP = IPPROTO_IGMP,
+		GGP = IPPROTO_GGP,
+		IPV4 = IPPROTO_IPV4,
+		ST = IPPROTO_ST,
+		TCP = IPPROTO_TCP,
+		CBT = IPPROTO_CBT,
+		EGP = IPPROTO_EGP,
+		IGP = IPPROTO_IGP,
+		PUP = IPPROTO_PUP,
+		UDP = IPPROTO_UDP,
+		IDP = IPPROTO_IDP,
+		RDP = IPPROTO_RDP,
+		IPV6 = IPPROTO_IPV6,
+		ROUTING = IPPROTO_ROUTING,
+		FRAGMENT = IPPROTO_FRAGMENT,
+		ESP = IPPROTO_ESP,
+		AH = IPPROTO_AH,
+		ICMPV6 = IPPROTO_ICMPV6,
+		NONE = IPPROTO_NONE,
+		DSTOPTS = IPPROTO_DSTOPTS,
+		ND = IPPROTO_ND,
+		ICLFXBM = IPPROTO_ICLFXBM,
+		PIM = IPPROTO_PIM,
+		PGM = IPPROTO_PGM,
+		L2TP = IPPROTO_L2TP,
+		SCTP = IPPROTO_SCTP,
+		RAW = IPPROTO_RAW,
+	};
+	
+	///  port IPPORT
+	enum class IPPORT : int {
+		TCPMUX = IPPORT_TCPMUX,
+		ECHO = IPPORT_ECHO,
+		DISCARD = IPPORT_DISCARD,
+		SYSTAT = IPPORT_SYSTAT,
+		DAYTIME = IPPORT_DAYTIME,
+		NETSTAT = IPPORT_NETSTAT,
+		QOTD = IPPORT_QOTD,
+		MSP = IPPORT_MSP,
+		CHARGEN = IPPORT_CHARGEN,
+		FTP_DATA = IPPORT_FTP_DATA,
+		FTP = IPPORT_FTP,
+		TELNET = IPPORT_TELNET,
+		SMTP = IPPORT_SMTP,
+		TIMESERVER = IPPORT_TIMESERVER,
+		NAMESERVER = IPPORT_NAMESERVER,
+		WHOIS = IPPORT_WHOIS,
+		MTP = IPPORT_MTP,
+		TFTP = IPPORT_TFTP,
+		RJE = IPPORT_RJE,
+		FINGER = IPPORT_FINGER,
+		TTYLINK = IPPORT_TTYLINK,
+		SUPDUP = IPPORT_SUPDUP,
+		POP3 = IPPORT_POP3,
+		NTP = IPPORT_NTP,
+		EPMAP = IPPORT_EPMAP,
+		NETBIOS_NS = IPPORT_NETBIOS_NS,
+		NETBIOS_DGM = IPPORT_NETBIOS_DGM,
+		NETBIOS_SSN = IPPORT_NETBIOS_SSN,
+		IMAP = IPPORT_IMAP,
+		SNMP = IPPORT_SNMP,
+		SNMP_TRAP = IPPORT_SNMP_TRAP,
+		IMAP3 = IPPORT_IMAP3,
+		LDAP = IPPORT_LDAP,
+		HTTP = 80, // not in w2def.h???
+		HTTPS = IPPORT_HTTPS,
+		MICROSOFT_DS = IPPORT_MICROSOFT_DS,
+		EXECSERVER = IPPORT_EXECSERVER,
+		LOGINSERVER = IPPORT_LOGINSERVER,
+		CMDSERVER = IPPORT_CMDSERVER,
+		EFSSERVER = IPPORT_EFSSERVER,
+		BIFFUDP = IPPORT_BIFFUDP,
+		WHOSERVER = IPPORT_WHOSERVER,
+		ROUTESERVER = IPPORT_ROUTESERVER,
+	};
+	
+	/// send/recv flags
+	enum class MSG : int {
+		DEFAULT = 0,
+		DONTROUTE = MSG_DONTROUTE,
+		OOB = MSG_OOB, // both send and recv
+		PEEK = MSG_PEEK,
+		WAITALL = MSG_WAITALL,
+	};
 
 #ifdef ERROR
-#define ERROR_ ERROR
+#define ERROR_FOOBAR ERROR
 #undef ERROR
 #endif
 	// getsockopt(SOL_SOCKET, ...)
-#define SOL_SOCKET_ARGS(X) \
+#define GET_SOL_SOCKET(X) \
 	X(ACCEPTCONN, BOOL, "The socket is listening.") \
 	X(BROADCAST, BOOL, "The socket is configured for the transmission and receipt of broadcast messages.") \
 	X(BSP_STATE, CSADDR_INFO, "Returns the local address, local port, remote address, remote port, socket type, and protocol used by a socket.") \
@@ -89,32 +177,71 @@ namespace winsock {
 //	X(CONNECT_TIME, DWORD, "Returns the number of seconds a socket has been connected. This socket option is valid for connection oriented protocols only.") \
 //	X(LINGER, LINGER, "Returns the current linger options.") \
 
-#ifdef ERROR_
-#define ERROR ERROR_
+#ifdef ERROR_FOOBAR
+#define ERROR ERROR_FOOBAR
 #endif
 
-#define SO_ENUM(name, type, desc) name = (SO_ ## name), // desc
-	enum SO {
-		SOL_SOCKET_ARGS(SO_ENUM)
+#define SET_SOL_SOCKET(X) \
+	X(BROADCAST, BOOL, "Configures a socket for sending broadcast data.") \
+	X(CONDITIONAL_ACCEPT, BOOL, "Enables incoming connections are to be accepted or rejected by the application, not by the protocol stack.") \
+	X(DEBUG, BOOL, "Enables debug output. Microsoft providers currently do not output any debug information.") \
+	X(DONTLINGER, BOOL, "Does not block close waiting for unsent data to be sent. Setting this option is equivalent to setting SO_LINGER with l_onoff set to zero.") \
+	X(DONTROUTE, BOOL, "Sets whether outgoing data should be sent on interface the socket is bound to and not a routed on some other interface. This option is not supported on ATM sockets (results in an error).") \
+	X(GROUP_PRIORITY, int, "Reserved.") \
+	X(KEEPALIVE, BOOL, "Enables sending keep-alive packets for a socket connection. Not supported on ATM sockets (results in an error).") \
+	X(OOBINLINE, BOOL, "Indicates that out-of-bound data should be returned in-line with regular data. This option is only valid for connection-oriented protocols that support out-of-band data. For a discussion of this topic, see Protocol Independent Out-Of-band Data.") \
+	X(RCVBUF, int, "Specifies the total per-socket buffer space reserved for receives.") \
+	X(REUSEADDR, BOOL, "Allows the socket to be bound to an address that is already in use. For more information, see bind. Not applicable on ATM sockets.") \
+	X(EXCLUSIVEADDRUSE, BOOL, "Enables a socket to be bound for exclusive access. Does not require administrative privilege.") \
+	X(RCVTIMEO, DWORD, "Sets the timeout, in milliseconds, for blocking receive calls.") \
+	X(SNDBUF, int, "Specifies the total per-socket buffer space reserved for sends.") \
+	X(SNDTIMEO, DWORD, "The timeout, in milliseconds, for blocking send calls.") \
+
+//	X(SO_UPDATE_ACCEPT_CONTEXT, int, "Updates the accepting socket with the context of the listening socket.") \
+//	X(LINGER, LINGER, "Lingers on close if unsent data is present.") \
+
+#define SO_ENUM(name, type, desc) name = (SO_ ## name),
+	enum class GET_SO : int {
+		GET_SOL_SOCKET(SO_ENUM)
+	};
+	enum SET_SO {
+		SET_SOL_SOCKET(SO_ENUM)
 	};
 #undef SO_ENUM
 	
-	template<int T> struct sol_socket_type { };
-#define SO_SOCKET_TYPE(name, T, desc) template<> struct sol_socket_type<SO::##name> { typedef T type; };
-	SOL_SOCKET_ARGS(SO_SOCKET_TYPE)
-#undef SO_SOCKET_TYPE
+	template<enum GET_SO T> struct get_sol_socket_type { };
+#define GET_SO_SOCKET_TYPE(name, T, desc) template<> struct get_sol_socket_type<GET_SO::##name> { typedef T type; };
+	GET_SOL_SOCKET(GET_SO_SOCKET_TYPE)
+#undef GET_SO_SOCKET_TYPE
 
-	template<int T>
-	inline typename sol_socket_type<T>::type getsockopt(SOCKET s) 
+	template<enum SET_SO T> struct set_sol_socket_type { };
+#define SET_SO_SOCKET_TYPE(name, T, desc) template<> struct set_sol_socket_type<SET_SO::##name> { typedef T type; };
+	SET_SOL_SOCKET(SET_SO_SOCKET_TYPE)
+#undef SET_SO_SOCKET_TYPE
+
+	/// Get socket options of known type.
+	template<enum GET_SO type>
+	inline typename get_sol_socket_type<type>::type sockopt(SOCKET s) 
 	{
-		typename sol_socket_type<T>::type t;
+		typename get_sol_socket_type<type>::type t;
 		int len(sizeof(t));
 
-		::getsockopt(s, SOL_SOCKET, T, (char*)&t, &len);
+		::getsockopt(s, SOL_SOCKET, static_cast<int>(type), (char*)&t, &len);
 
 		return t;
 	}
+	/// Set socket options of known type.
+	template<enum SET_SO type>
+	inline int sockopt(SOCKET s, typename set_sol_socket_type<type>::type t)
+	{
+		return ::setsockopt(s, SOL_SOCKET, static_cast<int>(type), (char*)&t, sizeof(t));
+	}
+	
+	//!!! inline ... linger(SOCKET s, ...)
 
+	/// <summary>
+	///  Initialize winsock.
+	/// </summary>
 	class WSA {
 		WSADATA wsaData;
 	public:
@@ -132,6 +259,59 @@ namespace winsock {
 		}
 	};
 	static inline const WSA wsa;
+	
+	class sockaddr : public ::sockaddr {
+	public:
+		sockaddr(AF family = AF::INET)
+		{
+			this->sa_family = static_cast<int>(family);
+		}
+		sockaddr(const ::sockaddr& sa)
+		{
+			CopyMemory(this, &sa, sizeof(sa));
+		}
+		sockaddr(const sockaddr& sa)
+			: sockaddr(static_cast<const ::sockaddr&>(sa))
+		{ }
+		sockaddr& operator=(const sockaddr& sa)
+		{
+			CopyMemory(this, &sa, sizeof(sa));
+
+			return *this;
+		}
+		~sockaddr()
+		{ }
+		::sockaddr_in& in()
+		{
+			return *(::sockaddr_in*)this;
+		}
+		const ::sockaddr_in& in() const
+		{
+			return *(const ::sockaddr_in*)this;
+		}
+		IPPORT port() const
+		{
+			return (IPPORT)in().sin_port;
+		}
+		sockaddr& port(IPPORT port)
+		{
+			using type = decltype(in().sin_port);
+
+			in().sin_port = static_cast<type>(port);
+
+			return *this;
+		}
+		//???
+		const ::in_addr& addr() const
+		{
+			return in().sin_addr;
+		}
+		const int len() const
+		{
+			return static_cast<int>(sizeof(::in_addr));
+		}
+	};
+	
 
 	/// forward iterator over addrinfo pointers
 	class addrinfo_iter {
@@ -181,6 +361,18 @@ namespace winsock {
 			}
 		}
 
+		::sockaddr* operator&()
+		{
+			return pai->ai_addr;
+		}
+		const ::sockaddr* operator&() const
+		{
+			return pai->ai_addr;
+		}
+		const auto addrlen() const
+		{
+			return pai->ai_addrlen;
+		}
 		addrinfo_iter begin() const
 		{
 			return addrinfo_iter(pai);
@@ -197,7 +389,7 @@ namespace winsock {
 		socket(::SOCKET s)
 			: s(s)
 		{ }
-		socket(AF family = AF::UNSPEC, SOCK socktype = SOCK::STREAM, IPPROTO protocol = IPPROTO_TCP)
+		socket(AF family = AF::UNSPEC, SOCK socktype = SOCK::STREAM, IPPROTO protocol = IPPROTO::TCP)
 			: s(INVALID_SOCKET)
 		{
 			s = ::socket(static_cast<int>(family), static_cast<int>(socktype), static_cast<int>(protocol));
@@ -256,21 +448,21 @@ namespace winsock {
 		}
 
 		// server
-		int bind(const sockaddr* addr, int len)
+		int bind(const ::sockaddr* addr, int len)
 		{
 			return ::bind(s, addr, len);
 		}
-		SOCKET accept(sockaddr* addr, int* len)
+		SOCKET accept(::sockaddr* addr, int* len)
 		{
 			return ::accept(s, addr, len);
 		}
-		int listen(int backlog)
+		int listen(int backlog = SOMAXCONN)
 		{
 			return ::listen(s, backlog);
 		}
 
 		// client
-		int connect(const sockaddr* addr, int len)
+		int connect(const ::sockaddr* addr, int len)
 		{
 			return ::connect(s, addr, len);
 		}
@@ -288,15 +480,6 @@ namespace winsock {
 			return result;
 		}
 
-		/// send/recv flags
-		enum class MSG : int {
-			DEFAULT   = 0,
-			DONTROUTE = MSG_DONTROUTE,
-			OOB       = MSG_OOB, // both send and recv
-			PEEK      = MSG_PEEK, 
-			WAITALL   = MSG_WAITALL,
-		};
-
 		int send(const char* msg, int len = 0, MSG flags = MSG::DEFAULT)
 		{
 			if (0 == len) {
@@ -305,14 +488,15 @@ namespace winsock {
 
 			return ::send(s, msg, len, static_cast<int>(flags));
 		}
-		socket& operator<<(const char* s)
+		socket& operator<<(const char* msg)
 		{
-			send(s);
+			send(msg, static_cast<int>(strlen(msg)));
 
 			return *this;
 		}
 		socket& operator<<(std::istream& is)
 		{
+			// use SO_SNDBUF!!!
 			while (!is.eof()) {
 				char c;
 				is >> c;
@@ -327,6 +511,7 @@ namespace winsock {
 		}
 		socket& operator>>(std::ostream& os)
 		{
+			// use SO_RCVBUF!!!
 			char c = 0;
 			while (1 == recv(&c, 1)) {
 				os << c;
@@ -335,15 +520,60 @@ namespace winsock {
 			return *this;
 		}
 
-		int sendto(const char* buf, int len, int flags, const sockaddr* to, int tolen) 
+		int sendto(const char* buf, int len, MSG flags, const ::sockaddr* to, int tolen) 
 		{
-			return ::sendto(s, buf, len, flags, to, tolen);
+			return ::sendto(s, buf, len, static_cast<int>(flags), to, tolen);
 		}
-		int recvfrom(char* buf, int len, int flags, sockaddr* in, int* inlen)
+		int recvfrom(char* buf, int len, MSG flags, ::sockaddr* in, int* inlen)
 		{
-			return ::recvfrom(s, buf, len, flags, in, inlen);
+			return ::recvfrom(s, buf, len, static_cast<int>(flags), in, inlen);
 		}
 
 	};
-	DEFINE_ENUM_FLAG_OPERATORS(socket::MSG)
+	namespace tcp {
+		namespace client {
+			class socket : public winsock::socket {
+			public:
+				socket()
+					: winsock::socket(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
+				{ }
+			};
+		}
+	}
+	/*
+	namespace udp {
+		namespace server {
+			class socket {
+				winsock::socket s;
+				sockaddr_in addr;
+			public:
+				socket()
+					: s(AF::INET, SOCK::DGRAM)
+				{ }
+				int bind(int port)
+				{
+					::sockaddr_in sin;
+					sin.sin_family = static_cast<int>(AF::INET);
+					sin.sin_addr.s_addr = INADDR_ANY;
+					sin.sin_port = htons(port);
+
+					return s.bind((const ::sockaddr*)&sin, sizeof(sin));
+				}
+				int sendto(char* buf, int len, MSG flags = MSG::DEFAULT)
+				{
+					return 0; // s.sendto(buf, len, flags, to, tolen);
+				}
+				int recvfrom(char* buf, int len, MSG flags = MSG::DEFAULT)
+				{
+					int len = sizeof(addr);
+
+					//return s.recvfrom(buf, len, flags, (const ::sockaddr*)&addr, &len);
+					return len;
+				}
+			};
+		}
+	}
+	*/
+	/// Define bitwise operators.
+	DEFINE_ENUM_FLAG_OPERATORS(MSG)
 }
