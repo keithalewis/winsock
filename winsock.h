@@ -5,6 +5,7 @@
 #include <ws2tcpip.h>
 #include <compare>
 #include <cstring>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <stdexcept>
@@ -74,7 +75,7 @@ namespace win {
 	};
 	static inline const WSA wsa;
 
-	// forward iterator over addrinfo pointers
+	/// forward iterator over addrinfo pointers
 	class addrinfo_iter {
 		::addrinfo* pai;
 	public:
@@ -135,13 +136,17 @@ namespace win {
 
 	class socket {
 		::SOCKET s;
-		//::addrinfo hints;
 	public:
+		socket(::SOCKET s)
+			: s(s)
+		{ }
 		socket(AF family = AF::UNSPEC, SOCK socktype = SOCK::STREAM, IPPROTO protocol = IPPROTO_TCP)
 			: s(INVALID_SOCKET)
 		{
 			s = ::socket(static_cast<int>(family), static_cast<int>(socktype), static_cast<int>(protocol));
 		}
+		socket(const socket&) = default;
+		socket& operator=(const socket&) = default;
 		~socket()
 		{
 			if (s != INVALID_SOCKET) {
@@ -149,9 +154,23 @@ namespace win {
 			}
 		}
 
+		/// <summary>
+		/// Use as a SOCKET
+		/// </summary>
 		operator ::SOCKET()
 		{
 			return s;
+		}
+
+		/// Address of the peer to which a socket is connected.
+		std::pair<::sockaddr*, int> getpeername()
+		{
+			::sockaddr* name = nullptr;
+			int len = 0;
+
+			::getpeername(s, name, &len);
+
+			return std::pair(name, len);
 		}
 
 		::addrinfo hints() const
@@ -160,7 +179,7 @@ namespace win {
 			ZeroMemory(&ai, sizeof(ai));
 
 			WSAPROTOCOL_INFO wsapi;
-			int len;
+			int len = sizeof(wsapi);
 			if (0 == ::getsockopt(s, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&wsapi, &len)) {
 				ai.ai_family = wsapi.iAddressFamily;
 				ai.ai_socktype = wsapi.iSocketType;
@@ -220,9 +239,34 @@ namespace win {
 
 			return ::send(s, msg, len, static_cast<int>(flags));
 		}
+		socket& operator<<(const char* s)
+		{
+			send(s);
+
+			return *this;
+		}
+		socket& operator<<(std::istream& is)
+		{
+			while (!is.eof()) {
+				char c;
+				is >> c;
+				send(&c, 1);
+			}
+
+			return *this;
+		}
 		int recv(char* buf, int len, MSG flags = MSG::DEFAULT)
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
+		}
+		socket& operator>>(std::ostream& os)
+		{
+			char c = 0;
+			while (1 == recv(&c, 1)) {
+				os << c;
+			}
+
+			return *this;
 		}
 
 		int sendto(const char* buf, int len, int flags, const sockaddr* to, int tolen) 
