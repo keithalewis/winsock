@@ -13,7 +13,7 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
-namespace win {
+namespace winsock {
 
 	/// address family
 	enum class AF : int {
@@ -56,6 +56,64 @@ namespace win {
 		RDM = SOCK_RDM,
 		SEQPACKET = SOCK_SEQPACKET,
 	};
+
+	/// protocol IPPROTO
+
+#ifdef ERROR
+#define ERROR_ ERROR
+#undef ERROR
+#endif
+	// getsockopt(SOL_SOCKET, ...)
+#define SOL_SOCKET_ARGS(X) \
+	X(ACCEPTCONN, BOOL, "The socket is listening.") \
+	X(BROADCAST, BOOL, "The socket is configured for the transmission and receipt of broadcast messages.") \
+	X(BSP_STATE, CSADDR_INFO, "Returns the local address, local port, remote address, remote port, socket type, and protocol used by a socket.") \
+	X(CONDITIONAL_ACCEPT, BOOL, "Returns current socket state, either from a previous call to setsockopt or the system default.") \
+	X(DEBUG, BOOL, "Debugging is enabled.") \
+	X(DONTLINGER, BOOL, "If TRUE, the LINGER option is disabled.") \
+	X(DONTROUTE, BOOL, "Routing is disabled. Setting this succeeds but is ignored on AF_INET sockets; fails on AF_INET6 sockets with WSAENOPROTOOPT. This option is not supported on ATM sockets.") \
+	X(ERROR, int, "Retrieves error status and clear.") \
+	X(EXCLUSIVEADDRUSE, BOOL, "Prevents any other socket from binding to the same address and port. This option must be set before calling the bind function.") \
+	X(GROUP_ID, GROUP, "Reserved.") \
+	X(GROUP_PRIORITY, int, "Reserved.") \
+	X(KEEPALIVE, BOOL, "Keep-alives are being sent. Not supported on ATM sockets.") \
+	X(MAX_MSG_SIZE, unsigned int, "The maximum size of a message for message-oriented socket types (for example, SOCK_DGRAM). Has no meaning for stream oriented sockets.") \
+	X(OOBINLINE, BOOL, "OOB data is being received in the normal data stream. (See section Windows Sockets 1.1 Blocking Routines and EINPROGRESS for a discussion of this topic.)") \
+	X(PORT_SCALABILITY, BOOL, "Enables local port scalability for a socket by allowing port allocation to be maximized by allocating wildcard ports multiple times for different local address port pairs on a local machine.") \
+	X(PROTOCOL_INFO, WSAPROTOCOL_INFO, "A description of the protocol information for the protocol that is bound to this socket.") \
+	X(RCVBUF, int, "The total per-socket buffer space reserved for receives. This is unrelated to SO_MAX_MSG_SIZE and does not necessarily correspond to the size of the TCP receive window.") \
+	X(REUSEADDR, BOOL, "The socket can be bound to an address which is already in use. Not applicable for ATM sockets.") \
+	X(SNDBUF, int, "The total per-socket buffer space reserved for sends. This is unrelated to SO_MAX_MSG_SIZE and does not necessarily correspond to the size of a TCP send window.") \
+	X(TYPE, int, "The type of the socket (for example, SOCK_STREAM).") \
+
+//	X(CONNECT_TIME, DWORD, "Returns the number of seconds a socket has been connected. This socket option is valid for connection oriented protocols only.") \
+//	X(LINGER, LINGER, "Returns the current linger options.") \
+
+#ifdef ERROR_
+#define ERROR ERROR_
+#endif
+
+#define SO_ENUM(name, type, desc) name = (SO_ ## name), // desc
+	enum SO {
+		SOL_SOCKET_ARGS(SO_ENUM)
+	};
+#undef SO_ENUM
+	
+	template<int T> struct sol_socket_type { };
+#define SO_SOCKET_TYPE(name, T, desc) template<> struct sol_socket_type<SO::##name> { typedef T type; };
+	SOL_SOCKET_ARGS(SO_SOCKET_TYPE)
+#undef SO_SOCKET_TYPE
+
+	template<int T>
+	inline typename sol_socket_type<T>::type getsockopt(SOCKET s) 
+	{
+		typename sol_socket_type<T>::type t;
+		int len(sizeof(t));
+
+		::getsockopt(s, SOL_SOCKET, T, (char*)&t, &len);
+
+		return t;
+	}
 
 	class WSA {
 		WSADATA wsaData;
@@ -101,7 +159,6 @@ namespace win {
 			return *this;
 		}
 	};
-
 
 	class addrinfo {
 		::addrinfo* pai;
@@ -173,18 +230,27 @@ namespace win {
 			return std::pair(name, len);
 		}
 
+		/// address family, socket type, protocol
+		int hints(::addrinfo* pai) const
+		{
+			WSAPROTOCOL_INFO wsapi;
+			int len = sizeof(wsapi);
+
+			int result = ::getsockopt(s, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&wsapi, &len);
+			if (0 == result) {
+				pai->ai_family = wsapi.iAddressFamily;
+				pai->ai_socktype = wsapi.iSocketType;
+				pai->ai_protocol = wsapi.iProtocol;
+			}
+
+			return result;
+		}
 		::addrinfo hints() const
 		{
 			::addrinfo ai;
 			ZeroMemory(&ai, sizeof(ai));
 
-			WSAPROTOCOL_INFO wsapi;
-			int len = sizeof(wsapi);
-			if (0 == ::getsockopt(s, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&wsapi, &len)) {
-				ai.ai_family = wsapi.iAddressFamily;
-				ai.ai_socktype = wsapi.iSocketType;
-				ai.ai_protocol = wsapi.iProtocol;
-			}
+			hints(&ai);
 
 			return ai;
 		}
