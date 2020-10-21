@@ -271,9 +271,15 @@ namespace winsock {
 	
 	class sockaddr : public ::sockaddr {
 	public:
-		sockaddr(AF family = AF::INET)
+		sockaddr(AF family = AF::UNSPEC)
 		{
 			this->sa_family = static_cast<int>(family);
+		}
+		sockaddr(const char* addr_, IPPORT port_)
+			: sockaddr(AF::INET)
+		{
+			addr(addr_);
+			port(port_);
 		}
 		sockaddr(const ::sockaddr& sa)
 		{
@@ -290,34 +296,43 @@ namespace winsock {
 		}
 		~sockaddr()
 		{ }
-		::sockaddr_in& in()
+
+		::sockaddr_in& in() noexcept
 		{
 			return *(::sockaddr_in*)this;
 		}
-		const ::sockaddr_in& in() const
+		const ::sockaddr_in& in() const noexcept
 		{
 			return *(const ::sockaddr_in*)this;
 		}
-		IPPORT port() const
+
+		IPPORT port() const noexcept
 		{
-			return (IPPORT)in().sin_port;
+			return (IPPORT)ntohs(in().sin_port);
 		}
-		sockaddr& port(IPPORT port)
+		sockaddr& port(IPPORT port) noexcept
 		{
 			using type = decltype(in().sin_port);
 
-			in().sin_port = static_cast<type>(port);
+			in().sin_port = htons(static_cast<type>(port));
 
 			return *this;
 		}
 		//???
-		const ::in_addr& addr() const
+		::in_addr& addr() noexcept
 		{
 			return in().sin_addr;
 		}
-		const int len() const
+		const ::in_addr& addr() const noexcept
 		{
-			return static_cast<int>(sizeof(::in_addr));
+			return in().sin_addr;
+		}
+		sockaddr& addr(const char* addr_)
+		{
+			int ret = inet_pton(this->sa_family, addr_, &addr());
+			//assert(1 == ret);
+
+			return *this;
 		}
 	};
 	
