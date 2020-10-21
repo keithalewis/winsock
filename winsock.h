@@ -17,6 +17,14 @@
 
 namespace winsock {
 
+	// internet address
+	enum class INADDR : decltype(INADDR_ANY) {
+		ANY = INADDR_ANY,
+		LOOPBACK = INADDR_LOOPBACK,
+		BROADCAST = INADDR_BROADCAST,
+		NONE = INADDR_NONE,
+	};
+
 	/// address family
 	enum class AF : int {
 		UNSPEC = AF_UNSPEC,
@@ -541,6 +549,7 @@ namespace winsock {
 
 			return rcv;
 		}
+		//??? no copy
 		socket& operator>>(std::ostream& os)
 		{
 			// use SO_RCVBUF!!!
