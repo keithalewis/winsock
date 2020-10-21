@@ -17,8 +17,8 @@
 
 namespace winsock {
 
-	// internet address
-	enum class INADDR : decltype(INADDR_ANY) {
+	/// internet address
+	enum class INADDR : ULONG {
 		ANY = INADDR_ANY,
 		LOOPBACK = INADDR_LOOPBACK,
 		BROADCAST = INADDR_BROADCAST,
@@ -160,7 +160,8 @@ namespace winsock {
 #define ERROR_FOOBAR ERROR
 #undef ERROR
 #endif
-	// getsockopt(SOL_SOCKET, ...)
+
+	/// getsockopt(SOL_SOCKET, ...)
 #define GET_SOL_SOCKET(X) \
 	X(ACCEPTCONN, BOOL, "The socket is listening.") \
 	X(BROADCAST, BOOL, "The socket is configured for the transmission and receipt of broadcast messages.") \
@@ -190,6 +191,7 @@ namespace winsock {
 #define ERROR ERROR_FOOBAR
 #endif
 
+	/// setsockopt(SOL_SOCKET, ...)
 #define SET_SOL_SOCKET(X) \
 	X(BROADCAST, BOOL, "Configures a socket for sending broadcast data.") \
 	X(CONDITIONAL_ACCEPT, BOOL, "Enables incoming connections are to be accepted or rejected by the application, not by the protocol stack.") \
@@ -336,7 +338,6 @@ namespace winsock {
 		}
 	};
 	
-
 	/// forward iterator over addrinfo pointers
 	class addrinfo_iter {
 		::addrinfo* pai;
@@ -543,22 +544,22 @@ namespace winsock {
 			int ret = 0, off = 0;
 			while (0 != (ret = recv(rcv.data() + off, rcvbuf, flags))) {
 				// if (flags == MSG::OOB) {}
-				if (SOCKET_ERROR == ret) {
+				if (ret == SOCKET_ERROR) {
 					// int err = WSAGetLastError();
 					rcv.resize(0);
 
 					break;
 				}
-				else if (ret == rcvbuf) {
-					// more data to be read
-					rcv.resize(rcv.size() + rcvbuf);
-					off += rcvbuf;
-				}
-				else {
+				else if (ret != rcvbuf) {
 					// assert(ret < rcvbuf);
 					rcv.erase(rcv.begin() + off + ret, rcv.end());
 
 					break;
+				}
+				else {
+					// more data to be read
+					rcv.resize(rcv.size() + rcvbuf);
+					off += rcvbuf;
 				}
 			}
 
