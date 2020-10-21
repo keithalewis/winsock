@@ -521,11 +521,13 @@ namespace winsock {
 		}
 		socket& operator<<(std::istream& is)
 		{
-			// use SO_SNDBUF!!!
-			while (!is.eof()) {
-				char c;
-				is >> c;
-				send(&c, 1);
+			int sndbuf = sockopt<GET_SO::SNDBUF>(s);
+			std::vector<char> snd(sndbuf);
+			while (is.read(snd.data(), sndbuf)) {
+				send(snd.data(), static_cast<int>(is.gcount()));
+				if (is.eof()) {
+					break;
+				}
 			}
 
 			return *this;
@@ -567,11 +569,16 @@ namespace winsock {
 		//??? no copy
 		socket& operator>>(std::ostream& os)
 		{
-			// use SO_RCVBUF!!!
-			char c = 0;
-			while (1 == recv(&c, 1)) {
-				os << c;
+			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
+			std::vector<char> rcv(rcvbuf);
+			int ret = 0;
+			while (0 < (ret = recv(rcv.data(), rcvbuf))) {
+				os.write(rcv.data(), ret);
+				if (ret < rcvbuf) {
+					break;
+				}
 			}
+			// if (ret == SOCKET_ERROR) ...
 
 			return *this;
 		}
