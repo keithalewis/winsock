@@ -519,7 +519,14 @@ namespace winsock {
 
 			int ret = 0, off = 0;
 			while (0 != (ret = recv(rcv.data() + off, rcvbuf, flags))) {
-				if (ret == rcvbuf) {
+				// if (flags == MSG::OOB) {}
+				if (SOCKET_ERROR == ret) {
+					// int err = WSAGetLastError();
+					rcv.resize(0);
+
+					break;
+				}
+				else if (ret == rcvbuf) {
 					// more data to be read
 					rcv.resize(rcv.size() + rcvbuf);
 					off += rcvbuf;
