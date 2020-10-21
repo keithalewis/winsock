@@ -3,6 +3,8 @@
 #include <coroutine>
 #include <exception>
 
+// Use concepts for coroutine types: task, generator, ...
+
 struct coroutine_type {
 	struct promise_type {
 		int _value;

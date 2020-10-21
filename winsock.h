@@ -608,7 +608,7 @@ namespace winsock {
 				winsock::socket s;
 			public:
 				socket()
-					: s(AF::INET, SOCK::DGRAM, IPPROTO::UDP)
+					: s(AF::UNSPEC, SOCK::DGRAM, IPPROTO::UDP)
 				{ }
 				int sendto(char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
