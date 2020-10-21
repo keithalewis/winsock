@@ -601,6 +601,23 @@ namespace winsock {
 				}
 			};
 		}
+		namespace server {
+			class socket {
+				winsock::socket s;
+			public:
+				socket()
+					: s(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
+				{ }
+				~socket()
+				{
+					s.~socket();
+				}
+				int bind(const ::sockaddr* addr, int len)
+				{
+					return s.bind(addr, len);
+				}
+			};
+		}
 	}
 	
 	namespace udp {

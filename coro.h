@@ -1,4 +1,7 @@
 // coro.h - coroutines
+// replace sequences
+// reverse - coroutine with computed results
+// take(n, coro) { if (n--) co_yield coro() else return ???; }
 #pragma once
 #include <coroutine>
 #include <exception>
