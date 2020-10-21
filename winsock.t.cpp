@@ -1,60 +1,11 @@
 // winsock.t.cpp - test winsock
 #include <cassert>
 #include <cstdio>
-#include <coroutine>
 #include <future>
 #include "winsock.h"
 
 using namespace winsock;
 
-struct coroutine_type {
-	struct promise_type {
-		int _value;
-		coroutine_type get_return_object()
-		{
-			return { *this };
-		}
-		auto initial_suspend()
-		{
-			return std::suspend_never{};
-		}
-		auto final_suspend()
-		{
-			return std::suspend_never{};
-		}
-		void return_value(int val)
-		{
-			_value = val;
-		}
-		void unhandled_exception()
-		{
-			std::terminate();
-		}
-	};
-	using HDL = std::coroutine_handle<promise_type>;
-	coroutine_type() = default;
-	coroutine_type(const coroutine_type&) = delete;
-	~coroutine_type()
-	{
-		_coro.destroy(); 
-	}
-private:
-	coroutine_type(promise_type& p)
-		: _coro(HDL::from_promise(p))
-	{}
-	std::coroutine_handle<promise_type> _coro; 
-};
-coroutine_type a()
-{
-	co_await std::suspend_always{};
-	co_return 3;
-}
-/*
-coroutine_type b()
-{
-
-}
-*/
 struct bl {
 	const char* buf;
 	int len;
@@ -73,6 +24,13 @@ const sr data[] = {
 int test_socket()
 {
 	int i = 0;
+	{
+		winsock::socket s;
+		auto mms = sockopt<GET_SO::MAX_MSG_SIZE>(s);
+		assert(0 == sockopt<SET_SO::SNDBUF>(s, 10));
+		auto sb = sockopt<GET_SO::SNDBUF>(s);
+		assert(sb == 10);
+	}
 	{
 		winsock::socket s;
 
@@ -118,6 +76,7 @@ int test_hints()
 	//assert((int)AF::UNIX == hint.ai_family);
 	//auto family = getsockopt<GET_SO::TYPE>(s);
 	auto type = sockopt<GET_SO::TYPE>(s);
+	assert(type == hint.ai_socktype);
 
 	return 0;
 }

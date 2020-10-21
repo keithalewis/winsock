@@ -532,10 +532,11 @@ namespace winsock {
 	};
 	namespace tcp {
 		namespace client {
-			class socket : public winsock::socket {
+			class socket {
+				winsock::socket s;
 			public:
 				socket()
-					: winsock::socket(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
+					: s(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
 				{ }
 			};
 		}
