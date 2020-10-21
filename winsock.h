@@ -11,6 +11,7 @@
 #include <memory>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -486,13 +487,14 @@ namespace winsock {
 				len = static_cast<int>(strlen(msg));
 			}
 
-			return ::send(s, msg, len, static_cast<int>(flags));
-		}
-		socket& operator<<(const char* msg)
-		{
-			send(msg, static_cast<int>(strlen(msg)));
+			for (int ret = 0, n = len; n; n -= ret) {
+				ret = ::send(s, msg, len, static_cast<int>(flags));
+				if (SOCKET_ERROR == ret) {
+					return ret;
+				}
+			}
 
-			return *this;
+			return len;
 		}
 		socket& operator<<(std::istream& is)
 		{
@@ -505,9 +507,32 @@ namespace winsock {
 
 			return *this;
 		}
+
 		int recv(char* buf, int len, MSG flags = MSG::DEFAULT)
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
+		}
+		std::vector<char> recv(MSG flags = MSG::DEFAULT)
+		{
+			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
+			std::vector<char> rcv(rcvbuf);
+
+			int ret = 0, off = 0;
+			while (0 != (ret = recv(rcv.data() + off, rcvbuf, flags))) {
+				if (ret == rcvbuf) {
+					// more data to be read
+					rcv.resize(rcv.size() + rcvbuf);
+					off += rcvbuf;
+				}
+				else {
+					// assert(ret < rcvbuf);
+					rcv.erase(rcv.begin() + off + ret, rcv.end());
+
+					break;
+				}
+			}
+
+			return rcv;
 		}
 		socket& operator>>(std::ostream& os)
 		{
@@ -532,40 +557,35 @@ namespace winsock {
 	};
 	namespace tcp {
 		namespace client {
-			class socket : public winsock::socket {
+			class socket {
+				winsock::socket s;
 			public:
 				socket()
-					: winsock::socket(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
+					: s(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
 				{ }
+				int connect(const char* host, const char* port)
+				{
+					return s.connect(host, port);
+				}
 			};
 		}
 	}
-	/*
+	
 	namespace udp {
-		namespace server {
+		namespace client {
 			class socket {
 				winsock::socket s;
-				sockaddr_in addr;
 			public:
 				socket()
-					: s(AF::INET, SOCK::DGRAM)
+					: s(AF::INET, SOCK::DGRAM, IPPROTO::UDP)
 				{ }
-				int bind(int port)
-				{
-					::sockaddr_in sin;
-					sin.sin_family = static_cast<int>(AF::INET);
-					sin.sin_addr.s_addr = INADDR_ANY;
-					sin.sin_port = htons(port);
-
-					return s.bind((const ::sockaddr*)&sin, sizeof(sin));
-				}
 				int sendto(char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
 					return 0; // s.sendto(buf, len, flags, to, tolen);
 				}
 				int recvfrom(char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
-					int len = sizeof(addr);
+					//int len = sizeof(addr);
 
 					//return s.recvfrom(buf, len, flags, (const ::sockaddr*)&addr, &len);
 					return len;
@@ -573,7 +593,7 @@ namespace winsock {
 			};
 		}
 	}
-	*/
+	
 	/// Define bitwise operators.
 	DEFINE_ENUM_FLAG_OPERATORS(MSG)
 }

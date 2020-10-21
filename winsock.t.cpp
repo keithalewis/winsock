@@ -88,7 +88,11 @@ int test_socket()
 
 		assert (0 == s.connect("time-a-g.nist.gov", "13"));
 		assert(i == 0);
-		s >> std::cout;
+		std::vector<char> rcv = s.recv();
+		assert(rcv.size() != 0);
+		rcv.push_back(0);
+		puts(rcv.data());
+		//s >> std::cout;
 	}
 	/*
 	{
@@ -104,7 +108,7 @@ int test_socket()
 	{
 		winsock::socket s;
 		assert(0 == s.connect("www.google.com", "http"));
-		s << "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n";
+		s.send("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n");
 		s >> std::cout;
 	}
 
@@ -115,8 +119,6 @@ int test_hints()
 {
 	winsock::socket s;
 	auto hint = s.hints();
-	//assert((int)AF::UNIX == hint.ai_family);
-	//auto family = getsockopt<GET_SO::TYPE>(s);
 	auto type = sockopt<GET_SO::TYPE>(s);
 
 	return 0;
