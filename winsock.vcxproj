@@ -143,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="coro.h" />
     <ClInclude Include="winsock.h" />
   </ItemGroup>
   <ItemGroup>
