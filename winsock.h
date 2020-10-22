@@ -248,8 +248,7 @@ namespace winsock {
 	}
 	
 	//!!! inline ... linger(SOCKET s, ...)
-	//! 
-#define AI_A 1
+
 	// addrinfo ai_flags for getaddrinfo
 #define AI_ENUM(X) \
 	X(PASSIVE, "Setting the AI_PASSIVE flag indicates the caller intends to use the returned socket address structure in a call to the bind function. When the AI_PASSIVE flag is set and pNodeName is a NULL pointer, the IP address portion of the socket address structure is set to INADDR_ANY for IPv4 addresses and IN6ADDR_ANY_INIT for IPv6 addresses.") \
@@ -358,7 +357,6 @@ namespace winsock {
 			return *this;
 		}
 	};
-	
 
 	/// forward iterator over addrinfo pointers
 	class addrinfo_iter {
@@ -606,7 +604,7 @@ namespace winsock {
 
 			return rcv;
 		}
-		//??? no copy
+		//??? no copy using stream_buf
 		socket& operator>>(std::ostream& os)
 		{
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
@@ -615,7 +613,7 @@ namespace winsock {
 			while (0 < (ret = recv(rcv.data(), rcvbuf))) {
 				os.write(rcv.data(), ret);
 				if (ret < rcvbuf) {
-					break;
+					break; //??? check for pending data
 				}
 			}
 			// if (ret == SOCKET_ERROR) ...
