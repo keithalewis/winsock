@@ -21,15 +21,29 @@ const sr data[] = {
 	}
 };
 
+int test_addrinfo()
+{
+	::addrinfo ai = winsock::addrinfo::hints();
+	assert(ai.ai_flags == 0);
+	assert(ai.ai_family == static_cast<int>(AF::UNSPEC));
+	assert(ai.ai_socktype == static_cast<int>(SOCK::STREAM));
+	assert(ai.ai_protocol == static_cast<int>(winsock::IPPROTO::TCP));
+
+	return 0;
+}
+
 int test_socket()
 {
 	int i = 0;
 	{
 		winsock::socket s;
-		auto mms = sockopt<GET_SO::MAX_MSG_SIZE>(s);
+		assert(sockopt<GET_SO::TYPE>(s) == static_cast<int>(SOCK::STREAM));
 		assert(0 == sockopt<SET_SO::SNDBUF>(s, 10));
-		auto sb = sockopt<GET_SO::SNDBUF>(s);
-		assert(sb == 10);
+		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
+	}
+	{
+		winsock::socket s;
+		//s.connect("https://ipecho.net/plain", IPPORT::ECHO);
 	}
 	{
 		winsock::socket s;
@@ -86,6 +100,7 @@ int test_hints()
 
 int main()
 {
+	test_addrinfo();
 	test_hints();
 	test_socket();
 

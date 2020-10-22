@@ -10,6 +10,7 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -18,7 +19,7 @@
 namespace winsock {
 
 	// internet address
-	enum class INADDR : decltype(INADDR_ANY) {
+	enum class INADDR : ULONG {
 		ANY = INADDR_ANY,
 		LOOPBACK = INADDR_LOOPBACK,
 		BROADCAST = INADDR_BROADCAST,
@@ -247,6 +248,28 @@ namespace winsock {
 	}
 	
 	//!!! inline ... linger(SOCKET s, ...)
+	//! 
+#define AI_A 1
+	// addrinfo ai_flags for getaddrinfo
+#define AI_ENUM(X) \
+	X(PASSIVE, "Setting the AI_PASSIVE flag indicates the caller intends to use the returned socket address structure in a call to the bind function. When the AI_PASSIVE flag is set and pNodeName is a NULL pointer, the IP address portion of the socket address structure is set to INADDR_ANY for IPv4 addresses and IN6ADDR_ANY_INIT for IPv6 addresses.") \
+	X(CANONNAME, "If neither AI_CANONNAME nor AI_NUMERICHOST is used, the getaddrinfo function attempts resolution. If a literal string is passed getaddrinfo attempts to convert the string, and if a host name is passed the getaddrinfo function attempts to resolve the name to an address or multiple addresses.") \
+	X(NUMERICHOST, "When the AI_NUMERICHOST bit is set, the pNodeName parameter must contain a non-NULL numeric host address string, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
+	X(NUMERICSERV, "When the AI_NUMERICSERV bit is set, the pServiceName parameter must contain a non-NULL numeric port number, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
+	X(ADDRCONFIG, "If the AI_ADDRCONFIG bit is set, getaddrinfo will resolve only if a global address is configured. If AI_ADDRCONFIG flag is specified, IPv4 addresses shall be returned only if an IPv4 address is configured on the local system, and IPv6 addresses shall be returned only if an IPv6 address is configured on the local system. The IPv4 or IPv6 loopback address is not considered a valid global address.") \
+	X(V4MAPPED, "If the AI_V4MAPPED bit is set and a request for IPv6 addresses fails, a name service request is made for IPv4 addresses and these addresses are converted to IPv4-mapped IPv6 address format.") \
+	X(NON_AUTHORITATIVE, "If the AI_NON_AUTHORITATIVE bit is set, the NS_EMAIL namespace provider returns both authoritative and non-authoritative results. If the AI_NON_AUTHORITATIVE bit is not set, the NS_EMAIL namespace provider returns only authoritative results.") \
+	X(SECURE, "If the AI_SECURE bit is set, the NS_EMAIL namespace provider will return results that were obtained with enhanced security to minimize possible spoofing.") \
+	X(RETURN_PREFERRED_NAMES, "If the AI_RETURN_PREFERRED_NAMES is set, then no name should be provided in the pNodeName parameter. The NS_EMAIL namespace provider will return preferred names for publication.") \
+	X(FQDN, "If the AI_FQDN is set and a flat name (single label) is specified, getaddrinfo will return the fully qualified domain name that the name eventually resolved to. The fully qualified domain name is returned in the ai_canonname member in the associated addrinfo structure. This is different than AI_CANONNAME bit flag that returns the canonical name registered in DNS which may be different than the fully qualified domain name that the flat name resolved to. Only one of the AI_FQDN and AI_CANONNAME bits can be set. The getaddrinfo function will fail if both flags are present with EAI_BADFLAGS.") \
+	X(FILESERVER, "If the AI_FILESERVER is set, this is a hint to the namespace provider that the hostname being queried is being used in file share scenario. The namespace provider may ignore this hint.") \
+
+#define X(a,b) a = AI_ ## a,
+	enum class AI : int {
+		DEFAULT = 0,
+		AI_ENUM(X)
+	};
+#undef X
 
 	/// <summary>
 	///  Initialize winsock.
@@ -364,6 +387,7 @@ namespace winsock {
 		}
 	};
 
+
 	class addrinfo {
 		::addrinfo* pai;
 	public:
@@ -372,10 +396,14 @@ namespace winsock {
 		{ }
 		addrinfo(PCSTR host, PCSTR port, const ::addrinfo& hints)
 		{
+			// The getaddrinfo function provides protocol-independent translation from an ANSI host name to an address.
 			if (0 != ::getaddrinfo(host, port, &hints, &pai)) {
 				throw std::runtime_error("getaddrinfo failed");
 			}
 		}
+		addrinfo(PCSTR host, IPPORT port, const ::addrinfo& hints)
+			: addrinfo(host, std::to_string(static_cast<int>(port)).c_str(), hints)
+		{ }
 		addrinfo(const addrinfo&) = default;
 		addrinfo& operator=(const addrinfo&) = default;
 		~addrinfo()
@@ -385,6 +413,18 @@ namespace winsock {
 			}
 		}
 
+		/// Return an addrinfo to use as hints
+		static ::addrinfo hints(AF family = AF::UNSPEC, SOCK type = SOCK::STREAM, IPPROTO proto = IPPROTO::TCP, AI flags = AI::DEFAULT)
+		{
+			::addrinfo ai = {
+				.ai_flags    = static_cast<int>(flags),
+				.ai_family   = static_cast<int>(family),
+				.ai_socktype = static_cast<int>(type),
+				.ai_protocol = static_cast<int>(proto) // htons ???
+			};
+
+			return ai;
+		}
 		::sockaddr* operator&()
 		{
 			return pai->ai_addr;
