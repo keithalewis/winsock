@@ -631,6 +631,7 @@ namespace winsock {
 		}
 
 	};
+	// Specialize default values for constructor and member functions.
 	namespace tcp {
 		namespace client {
 			class socket {
@@ -647,6 +648,7 @@ namespace winsock {
 		}
 	}
 	
+	// Specialize default values for constructor
 	namespace udp {
 		namespace client {
 			class socket {
@@ -655,6 +657,10 @@ namespace winsock {
 				socket()
 					: s(AF::UNSPEC, SOCK::DGRAM, IPPROTO::UDP)
 				{ }
+				operator ::SOCKET()
+				{
+					return s;
+				}
 				int sendto(char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
 					return 0; // s.sendto(buf, len, flags, to, tolen);
@@ -666,6 +672,20 @@ namespace winsock {
 					//return s.recvfrom(buf, len, flags, (const ::sockaddr*)&addr, &len);
 					return len;
 				}
+			};
+		}
+		namespace server {
+			class socket : public client::socket {
+			public:
+				socket()
+					: client::socket{}
+				{ }
+				int bind(const ::sockaddr* addr, int len)
+				{
+					winsock::socket s(*this); //!!! clumsy
+					return s.bind(addr, len);
+				}
+
 			};
 		}
 	}
