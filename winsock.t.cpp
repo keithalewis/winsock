@@ -97,12 +97,20 @@ int test_hints()
 	return 0;
 }
 
+int test_udp_socket()
+{
+	udp::server::socket srv("127.0.0.1", 12345);
+	udp::client::socket cli;
+
+	return 0;
+}
 
 int main()
 {
 	test_addrinfo();
 	test_hints();
 	test_socket();
+	test_udp_socket();
 
 	return 0;
 }

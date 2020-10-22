@@ -4,6 +4,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <ws2def.h>
+#include <array>
 #include <compare>
 #include <cstring>
 #include <iostream>
@@ -102,7 +103,7 @@ namespace winsock {
 	};
 	
 	///  port IPPORT
-	enum class IPPORT : int {
+	enum IPPORT {
 		TCPMUX = IPPORT_TCPMUX,
 		ECHO = IPPORT_ECHO,
 		DISCARD = IPPORT_DISCARD,
@@ -161,7 +162,8 @@ namespace winsock {
 #define ERROR_FOOBAR ERROR
 #undef ERROR
 #endif
-	// getsockopt(SOL_SOCKET, ...)
+
+	// getsockopt(SOL_SOCKET, SO_...)
 #define GET_SOL_SOCKET(X) \
 	X(ACCEPTCONN, BOOL, "The socket is listening.") \
 	X(BROADCAST, BOOL, "The socket is configured for the transmission and receipt of broadcast messages.") \
@@ -270,9 +272,7 @@ namespace winsock {
 	};
 #undef X
 
-	/// <summary>
 	///  Initialize winsock.
-	/// </summary>
 	class WSA {
 		WSADATA wsaData;
 	public:
@@ -291,70 +291,53 @@ namespace winsock {
 	};
 	static inline const WSA wsa;
 	
-	class sockaddr : public ::sockaddr {
+	// construct value object from dotted IP address string
+	class sockaddr {
+		std::array<char, sizeof(::sockaddr)> sa;
 	public:
-		sockaddr(AF family = AF::UNSPEC)
-		{
-			this->sa_family = static_cast<int>(family);
-		}
-		sockaddr(const char* addr_, IPPORT port_)
-			: sockaddr(AF::INET)
-		{
-			addr(addr_);
-			port(port_);
-		}
-		sockaddr(const ::sockaddr& sa)
-		{
-			CopyMemory(this, &sa, sizeof(sa));
-		}
-		sockaddr(const sockaddr& sa)
-			: sockaddr(static_cast<const ::sockaddr&>(sa))
+		sockaddr()
 		{ }
-		sockaddr& operator=(const sockaddr& sa)
+		sockaddr(const char* host, int port)
 		{
-			CopyMemory(this, &sa, sizeof(sa));
-
-			return *this;
+			int ret = inet_pton(AF_INET, host, (void*)&sin().sin_addr.s_addr);
+			if (ret == 1) {
+				sin().sin_family = AF_INET;
+			}
+			else {
+				int ret = inet_pton(AF_INET6, host, (void*)&sin().sin_addr.s_addr);
+				if (ret == 1) {
+					sin().sin_family = AF_INET6;
+				}
+				else {
+					//!!! use std::system_error and WSAGetLastError()
+					throw std::runtime_error("inet_pton failed");
+				}
+			}
+			sin().sin_port = htons(port);
 		}
+		sockaddr(const sockaddr&) = default;
+		sockaddr& operator=(const sockaddr&) = default;
+		sockaddr(sockaddr&&) = default;
+		sockaddr& operator=(sockaddr&&) = default;
 		~sockaddr()
 		{ }
 
-		::sockaddr_in& in() noexcept
+		::sockaddr* operator&()
 		{
-			return *(::sockaddr_in*)this;
+			return (::sockaddr*)sa.data();
 		}
-		const ::sockaddr_in& in() const noexcept
+		const ::sockaddr* operator&() const
 		{
-			return *(const ::sockaddr_in*)this;
+			return (const ::sockaddr*)sa.data();
 		}
 
-		IPPORT port() const noexcept
+		::sockaddr_in& sin()
 		{
-			return (IPPORT)ntohs(in().sin_port);
+			return *(::sockaddr_in*)sa.data();
 		}
-		sockaddr& port(IPPORT port) noexcept
+		int len() const noexcept
 		{
-			using type = decltype(in().sin_port);
-
-			in().sin_port = htons(static_cast<type>(port));
-
-			return *this;
-		}
-		//???
-		::in_addr& addr() noexcept
-		{
-			return in().sin_addr;
-		}
-		const ::in_addr& addr() const noexcept
-		{
-			return in().sin_addr;
-		}
-		sockaddr& addr(const char* addr_)
-		{
-			int ret = inet_pton(this->sa_family, addr_, &addr());
-			//assert(1 == ret);
-
-			return *this;
+			return static_cast<int>(sa.size());
 		}
 	};
 
@@ -385,7 +368,6 @@ namespace winsock {
 		}
 	};
 
-
 	class addrinfo {
 		::addrinfo* pai;
 	public:
@@ -399,9 +381,6 @@ namespace winsock {
 				throw std::runtime_error("getaddrinfo failed");
 			}
 		}
-		addrinfo(PCSTR host, IPPORT port, const ::addrinfo& hints)
-			: addrinfo(host, std::to_string(static_cast<int>(port)).c_str(), hints)
-		{ }
 		addrinfo(const addrinfo&) = default;
 		addrinfo& operator=(const addrinfo&) = default;
 		~addrinfo()
@@ -514,10 +493,17 @@ namespace winsock {
 		{
 			return ::bind(s, addr, len);
 		}
+		
+		int bind(const sockaddr& sa)
+		{
+			return bind(&sa, sa.len());
+		}
+		
 		SOCKET accept(::sockaddr* addr, int* len)
 		{
 			return ::accept(s, addr, len);
 		}
+		// ???accept(sockaddr&)
 		int listen(int backlog = SOMAXCONN)
 		{
 			return ::listen(s, backlog);
@@ -631,6 +617,7 @@ namespace winsock {
 		}
 
 	};
+
 	// Specialize default values for constructor and member functions.
 	namespace tcp {
 		namespace client {
@@ -661,31 +648,41 @@ namespace winsock {
 				{
 					return s;
 				}
-				int sendto(char* buf, int len, MSG flags = MSG::DEFAULT)
+				int sendto(const sockaddr& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
-					return 0; // s.sendto(buf, len, flags, to, tolen);
+					return s.sendto(buf, len, flags, &sa, sa.len());
 				}
-				int recvfrom(char* buf, int len, MSG flags = MSG::DEFAULT)
+				int recvfrom(sockaddr& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
-					//int len = sizeof(addr);
-
-					//return s.recvfrom(buf, len, flags, (const ::sockaddr*)&addr, &len);
-					return len;
+					return s.recvfrom(buf, len, flags, &sa, &len);
 				}
 			};
 		}
 		namespace server {
-			class socket : public client::socket {
+			class socket {
+				winsock::socket s;
 			public:
-				socket()
-					: client::socket{}
-				{ }
-				int bind(const ::sockaddr* addr, int len)
+				// create and bind the udp socket
+				socket(const char* host, int port)
+					: s(AF::UNSPEC, SOCK::DGRAM, IPPROTO::UDP)
 				{
-					winsock::socket s(*this); //!!! clumsy
-					return s.bind(addr, len);
+					s.bind(sockaddr(host, port));
 				}
+				sockaddr recvfrom(char* buf, int len, MSG flags = MSG::WAITALL)
+				{
+					sockaddr sa;
 
+					int n = s.recvfrom(buf, len, flags, &sa, &len);
+					if (n > 0 && n < len) {
+						buf[n] = 0;
+					}
+
+					return sa;
+				}
+				int sendto(const sockaddr& sa, const char* buf, int len, MSG flags = MSG::DEFAULT) //???MSG::CONFIRM
+				{
+					return s.sendto(buf, len, flags, &sa, sa.len());
+				}
 			};
 		}
 	}
