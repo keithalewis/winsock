@@ -291,27 +291,34 @@ namespace winsock {
 	};
 	static inline const WSA wsa;
 	
-	// construct value object from dotted IP address string
+	// construct value object from dotted IPv4 or IPv6 address string
+	template<AF af = AF::INET>
 	class sockaddr {
 		std::array<char, sizeof(::sockaddr)> sa;
+		int len_;
 	public:
-		sockaddr()
-		{ }
-		sockaddr(const char* host, int port)
+		static AF family()
 		{
-			int ret = inet_pton(AF_INET, host, (void*)&sin().sin_addr.s_addr);
-			if (ret == 1) {
-				sin().sin_family = AF_INET;
-			}
-			else {
-				int ret = inet_pton(AF_INET6, host, (void*)&sin().sin_addr.s_addr);
-				if (ret == 1) {
-					sin().sin_family = AF_INET6;
-				}
-				else {
-					//!!! use std::system_error and WSAGetLastError()
-					throw std::runtime_error("inet_pton failed");
-				}
+			return af;
+		}
+		sockaddr(int len = static_cast<int>(sizeof(::sockaddr)))
+			: sa{}, len_(len)
+		{ 
+			sin().sin_family = static_cast<int>(af);
+		}
+		sockaddr(INADDR addr, int port)
+			: sockaddr()
+		{
+			sin().sin_addr.s_addr = static_cast<int>(addr);
+			sin().sin_port = htons(port);
+		}
+		sockaddr(const char* host, int port)
+			: sockaddr()
+		{
+			int ret = inet_pton(static_cast<int>(af), host, (void*)&sin().sin_addr.s_addr);
+			if (ret != 1) {
+				//!!! use std::system_error and WSAGetLastError()
+				throw std::runtime_error("inet_pton failed");
 			}
 			sin().sin_port = htons(port);
 		}
@@ -322,6 +329,11 @@ namespace winsock {
 		~sockaddr()
 		{ }
 
+		::sockaddr_in& sin()
+		{
+			return *(::sockaddr_in*)sa.data();
+		}
+
 		::sockaddr* operator&()
 		{
 			return (::sockaddr*)sa.data();
@@ -331,13 +343,13 @@ namespace winsock {
 			return (const ::sockaddr*)sa.data();
 		}
 
-		::sockaddr_in& sin()
+		int& len()
 		{
-			return *(::sockaddr_in*)sa.data();
+			return len_;
 		}
-		int len() const noexcept
+		int len() const
 		{
-			return static_cast<int>(sa.size());
+			return len_;
 		}
 	};
 
@@ -368,6 +380,7 @@ namespace winsock {
 		}
 	};
 
+	template<AF af = AF::INET>
 	class addrinfo {
 		::addrinfo* pai;
 	public:
@@ -377,8 +390,15 @@ namespace winsock {
 		addrinfo(PCSTR host, PCSTR port, const ::addrinfo& hints)
 		{
 			// The getaddrinfo function provides protocol-independent translation from an ANSI host name to an address.
-			if (0 != ::getaddrinfo(host, port, &hints, &pai)) {
-				throw std::runtime_error("getaddrinfo failed");
+			int ret = ::getaddrinfo(host, port, &hints, &pai);
+			if (0 != ret) {
+				throw std::runtime_error(gai_strerrorA(ret)); //???lifetime
+			}
+			if (!pai) {
+				throw std::runtime_error("getaddrinfo found no addresses");
+			}
+			if (pai->ai_family != static_cast<int>(af)) {
+				throw std::runtime_error("getaddrinfo incompatible address family");
 			}
 		}
 		addrinfo(const addrinfo&) = default;
@@ -391,17 +411,18 @@ namespace winsock {
 		}
 
 		/// Return an addrinfo to use as hints
-		static ::addrinfo hints(AF family = AF::UNSPEC, SOCK type = SOCK::STREAM, IPPROTO proto = IPPROTO::TCP, AI flags = AI::DEFAULT)
+		static ::addrinfo hints(SOCK type = SOCK::STREAM, IPPROTO proto = IPPROTO::TCP, AI flags = AI::DEFAULT)
 		{
-			::addrinfo ai = {
-				.ai_flags    = static_cast<int>(flags),
-				.ai_family   = static_cast<int>(family),
-				.ai_socktype = static_cast<int>(type),
-				.ai_protocol = static_cast<int>(proto) // htons ???
-			};
+			::addrinfo ai;
+			memset(&ai, 0, sizeof(ai));
+			ai.ai_family = static_cast<int>(af);
+			ai.ai_socktype = static_cast<int>(type);
+			ai.ai_protocol = static_cast<int>(proto);
+			ai.ai_flags = static_cast<int>(flags);
 
 			return ai;
 		}
+
 		::sockaddr* operator&()
 		{
 			return pai->ai_addr;
@@ -424,16 +445,17 @@ namespace winsock {
 		}
 	};
 
+	template<AF af = AF::INET>
 	class socket {
 		::SOCKET s;
 	public:
 		socket(::SOCKET s)
 			: s(s)
 		{ }
-		socket(AF family = AF::UNSPEC, SOCK socktype = SOCK::STREAM, IPPROTO protocol = IPPROTO::TCP)
+		socket(SOCK type = SOCK::STREAM, IPPROTO proto = IPPROTO::TCP)
 			: s(INVALID_SOCKET)
 		{
-			s = ::socket(static_cast<int>(family), static_cast<int>(socktype), static_cast<int>(protocol));
+			s = ::socket(static_cast<int>(af), static_cast<int>(type), static_cast<int>(proto));
 		}
 		socket(const socket&) = default;
 		socket& operator=(const socket&) = default;
@@ -444,57 +466,48 @@ namespace winsock {
 			}
 		}
 
-		/// <summary>
-		/// Use as a SOCKET
-		/// </summary>
+		/// Usable as a SOCKET
 		operator ::SOCKET()
 		{
 			return s;
 		}
 
 		/// Address of the peer to which a socket is connected.
-		std::pair<::sockaddr*, int> getpeername()
+		sockaddr<af> peername()
 		{
-			::sockaddr* name = nullptr;
-			int len = 0;
+			sockaddr<af> sa;
 
-			::getpeername(s, name, &len);
+			::getpeername(s, &sa, &sa.len());
 
-			return std::pair(name, len);
+			return sa;
 		}
-
+		
 		/// address family, socket type, protocol
-		int hints(::addrinfo* pai) const
+		::addrinfo hints() const
 		{
 			WSAPROTOCOL_INFO wsapi;
 			int len = sizeof(wsapi);
+			::addrinfo ai;
+
+			memset(&ai, 0, sizeof(ai));
 
 			int result = ::getsockopt(s, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&wsapi, &len);
 			if (0 == result) {
-				pai->ai_family = wsapi.iAddressFamily;
-				pai->ai_socktype = wsapi.iSocketType;
-				pai->ai_protocol = wsapi.iProtocol;
+				ai.ai_family = wsapi.iAddressFamily;
+				ai.ai_socktype = wsapi.iSocketType;
+				ai.ai_protocol = wsapi.iProtocol;
+				ai.ai_flags = 0; //??? wsapi.dwProviderFlags;
 			}
-
-			return result;
-		}
-		::addrinfo hints() const
-		{
-			::addrinfo ai;
-			ZeroMemory(&ai, sizeof(ai));
-
-			hints(&ai);
 
 			return ai;
 		}
-
+		
 		// server
 		int bind(const ::sockaddr* addr, int len)
 		{
 			return ::bind(s, addr, len);
-		}
-		
-		int bind(const sockaddr& sa)
+		}		
+		int bind(const sockaddr<af>& sa)
 		{
 			return bind(&sa, sa.len());
 		}
@@ -503,7 +516,11 @@ namespace winsock {
 		{
 			return ::accept(s, addr, len);
 		}
-		// ???accept(sockaddr&)
+		SOCKET accept(sockaddr<af>& sa)
+		{
+			return ::accept(s, &sa, &sa.len());
+		}
+
 		int listen(int backlog = SOMAXCONN)
 		{
 			return ::listen(s, backlog);
@@ -514,11 +531,15 @@ namespace winsock {
 		{
 			return ::connect(s, addr, len);
 		}
-		int connect(const char* host, const char* port)
+		int connect(const sockaddr<af>& sa)
+		{
+			return ::connect(s, &sa, sa.len());
+		}
+		int connect(const addrinfo<af>& ai)
 		{
 			int result = SOCKET_ERROR;
 
-			for (const auto [addr, len] : addrinfo(host, port, hints())) {
+			for (const auto [addr, len] : ai) {
 				result = connect(addr, len);
 				if (0 == result) {
 					break;
@@ -526,6 +547,10 @@ namespace winsock {
 			}
 
 			return result;
+		}
+		int connect(const char* host, const char* port)
+		{
+			return connect(addrinfo(host, port, hints()));
 		}
 
 		int send(const char* msg, int len = 0, MSG flags = MSG::DEFAULT)
@@ -621,15 +646,15 @@ namespace winsock {
 	// Specialize default values for constructor and member functions.
 	namespace tcp {
 		namespace client {
+			template<AF af = AF::INET>
 			class socket {
-				winsock::socket s;
+				winsock::socket<af> s;
 			public:
-				socket()
-					: s(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
-				{ }
-				int connect(const char* host, const char* port)
+				// create and connect socket
+				socket(const char* host, const char* port)
+					: s(SOCK::STREAM, IPPROTO::TCP)
 				{
-					return s.connect(host, port);
+					s.connect(host, port);
 				}
 			};
 		}
@@ -638,39 +663,41 @@ namespace winsock {
 	// Specialize default values for constructor
 	namespace udp {
 		namespace client {
+			template<AF af = AF::INET>
 			class socket {
-				winsock::socket s;
+				winsock::socket<af> s;
 			public:
 				socket()
-					: s(AF::UNSPEC, SOCK::DGRAM, IPPROTO::UDP)
+					: s(SOCK::DGRAM, IPPROTO::UDP)
 				{ }
 				operator ::SOCKET()
 				{
 					return s;
 				}
-				int sendto(const sockaddr& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
+				int sendto(const sockaddr<af>& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
 					return s.sendto(buf, len, flags, &sa, sa.len());
 				}
-				int recvfrom(sockaddr& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
+				int recvfrom(sockaddr<af>& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
-					return s.recvfrom(buf, len, flags, &sa, &len);
+					return s.recvfrom(buf, len, flags, &sa, &sa.len());
 				}
 			};
 		}
 		namespace server {
+			template<AF af = AF::INET>
 			class socket {
-				winsock::socket s;
+				winsock::socket<af> s;
 			public:
 				// create and bind the udp socket
-				socket(const char* host, int port)
-					: s(AF::UNSPEC, SOCK::DGRAM, IPPROTO::UDP)
+				socket(const sockaddr<af>& sa)
+					: s(SOCK::DGRAM, IPPROTO::UDP)
 				{
-					s.bind(sockaddr(host, port));
+					s.bind(sa);
 				}
-				sockaddr recvfrom(char* buf, int len, MSG flags = MSG::WAITALL)
+				sockaddr<af> recvfrom(char* buf, int len, MSG flags = MSG::WAITALL)
 				{
-					sockaddr sa;
+					sockaddr<af> sa;
 
 					int n = s.recvfrom(buf, len, flags, &sa, &len);
 					if (n > 0 && n < len) {
@@ -679,7 +706,7 @@ namespace winsock {
 
 					return sa;
 				}
-				int sendto(const sockaddr& sa, const char* buf, int len, MSG flags = MSG::DEFAULT) //???MSG::CONFIRM
+				int sendto(const sockaddr<af>& sa, const char* buf, int len, MSG flags = MSG::DEFAULT) //???MSG::CONFIRM
 				{
 					return s.sendto(buf, len, flags, &sa, sa.len());
 				}
@@ -688,5 +715,6 @@ namespace winsock {
 	}
 	
 	/// Define bitwise operators.
-	DEFINE_ENUM_FLAG_OPERATORS(MSG)
+	DEFINE_ENUM_FLAG_OPERATORS(MSG);
+	DEFINE_ENUM_FLAG_OPERATORS(AI);
 }
