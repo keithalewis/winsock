@@ -58,8 +58,14 @@ int test_socket()
 		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
 	}
 	{
+		// https://ipecho.net/plain 
 		winsock::socket<> s;
-		//s.connect("https://ipecho.net/plain", IPPORT::ECHO);
+		s.connect("ipecho.net", "https");
+		s.send("GET /plain HTTP/1.1\r\nHost: ipecho.net\r\n\r\n");
+		//s.send("GET /plain HTTP/1.1\r\n\r\n");
+		char buf[1024];
+		int n = s.recv(buf, 1024);
+		buf[n] = 0;
 	}
 	{
 		winsock::socket<> s;
@@ -120,8 +126,7 @@ int test_udp_socket()
 	srv.sendto(sa, "hi", 2);
 	udp::client::socket<> cli;
 	char buf[3];
-	//sockaddr sa = cli.recvfrom()
-
+	winsock::sockaddr<> sa_ = cli.recvfrom(buf, 2);
 
 	return 0;
 }

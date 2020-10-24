@@ -637,9 +637,25 @@ namespace winsock {
 		{
 			return ::sendto(s, buf, len, static_cast<int>(flags), to, tolen);
 		}
+		int sendto(const sockaddr<af>& sa, const char* buf, int len, MSG flags = MSG::DEFAULT) //???MSG::CONFIRM
+		{
+			return sendto(buf, len, flags, &sa, sa.len());
+		}
+
 		int recvfrom(char* buf, int len, MSG flags, ::sockaddr* in, int* inlen)
 		{
 			return ::recvfrom(s, buf, len, static_cast<int>(flags), in, inlen);
+		}
+		sockaddr<af> recvfrom(char* buf, int len, MSG flags = MSG::WAITALL)
+		{
+			sockaddr<af> sa;
+
+			int n = recvfrom(buf, len, flags, &sa, &len);
+			if (n > 0 && n < len) {
+				buf[n] = 0;
+			}
+
+			return sa;
 		}
 
 	};
@@ -648,85 +664,66 @@ namespace winsock {
 	namespace tcp {
 		namespace client {
 			template<AF af = AF::INET>
-			class socket {
-				winsock::socket<af> s;
+			class socket : private winsock::socket<af> {
 			public:
+				using winsock::socket<af>::operator ::SOCKET;
+				using winsock::socket<af>::send;
+				using winsock::socket<af>::recv;
+
 				// create and connect socket
 				socket(const char* host, const char* port)
-					: s(SOCK::STREAM, IPPROTO::TCP)
+					: winsock::socket<af>(SOCK::STREAM, IPPROTO::TCP)
 				{
-					s.connect(host, port);
+					winsock::socket<af>::connect(host, port);
 				}
 			};
 		}
 		namespace server {
-			class socket {
-				winsock::socket s;
+			template<AF af = AF::INET>
+			class socket : private winsock::socket<af> {
 			public:
-				socket()
-					: s(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
-				{ }
-				~socket()
-				{
-					s.~socket();
-				}
-				int bind(const ::sockaddr* addr, int len)
-				{
-					return s.bind(addr, len);
+				using winsock::socket<af>::operator ::SOCKET;
+				using winsock::socket<af>::send;
+				using winsock::socket<af>::recv;
+
+				// create socket and bind
+				socket(const char* host, const char* port)
+					: winsock::socket<af>(SOCK::STREAM, IPPROTO::TCP)
+				{ 
+					winsock::socket<af>::bind(host, port);
+					//???accept, listen
 				}
 			};
 		}
 	}
 	
-	// Specialize default values for constructor
+	// Specialize default values for constructors
 	namespace udp {
 		namespace client {
 			template<AF af = AF::INET>
-			class socket {
-				winsock::socket<af> s;
+			class socket : private winsock::socket<af> {
 			public:
+				using winsock::socket<af>::operator ::SOCKET;
+				using winsock::socket<af>::sendto;
+				using winsock::socket<af>::recvfrom;
 				socket()
-					: s(SOCK::DGRAM, IPPROTO::UDP)
+					: winsock::socket<af>(SOCK::DGRAM, IPPROTO::UDP)
 				{ }
-				operator ::SOCKET()
-				{
-					return s;
-				}
-				int sendto(const sockaddr<af>& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
-				{
-					return s.sendto(buf, len, flags, &sa, sa.len());
-				}
-				int recvfrom(sockaddr<af>& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
-				{
-					return s.recvfrom(buf, len, flags, &sa, &sa.len());
-				}
 			};
 		}
 		namespace server {
 			template<AF af = AF::INET>
-			class socket {
-				winsock::socket<af> s;
+			class socket : private winsock::socket<af> {
 			public:
+				using winsock::socket<af>::operator ::SOCKET;
+				using winsock::socket<af>::sendto;
+				using winsock::socket<af>::recvfrom;
+
 				// create and bind the udp socket
 				socket(const sockaddr<af>& sa)
-					: s(SOCK::DGRAM, IPPROTO::UDP)
+					: winsock::socket<af>(SOCK::DGRAM, IPPROTO::UDP)
 				{
-					s.bind(sa);
-				}
-				sockaddr<af> recvfrom(char* buf, int len, MSG flags = MSG::WAITALL)
-				{
-					sockaddr<af> sa;
-
-					int n = s.recvfrom(buf, len, flags, &sa, &len);
-					if (n > 0 && n < len) {
-						buf[n] = 0;
-					}
-
-					return sa;
-				}
-				int sendto(const sockaddr<af>& sa, const char* buf, int len, MSG flags = MSG::DEFAULT) //???MSG::CONFIRM
-				{
-					return s.sendto(buf, len, flags, &sa, sa.len());
+					winsock::socket<af>::bind(sa);
 				}
 			};
 		}
