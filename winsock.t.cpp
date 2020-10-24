@@ -21,18 +21,48 @@ const sr data[] = {
 	}
 };
 
+int test_sockaddr()
+{
+	winsock::sockaddr<> sa(INADDR::ANY, 12345);
+
+	// by hand
+	::sockaddr_in sin;
+	memset(&sin, 0, sizeof(::sockaddr_in));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = INADDR_ANY;
+	sin.sin_port = htons(12345);
+
+	assert(0 == memcmp(&sin, &sa, sa.len()));
+
+	return 0;
+}
+
+int test_addrinfo()
+{
+	::addrinfo ai = winsock::addrinfo<>::hints();
+	assert(ai.ai_flags == 0);
+	assert(ai.ai_family == AF_INET);
+	assert(ai.ai_socktype == SOCK_STREAM);
+	assert(ai.ai_protocol == IPPROTO_TCP);
+
+	return 0;
+}
+
 int test_socket()
 {
 	int i = 0;
 	{
-		winsock::socket s;
-		auto mms = sockopt<GET_SO::MAX_MSG_SIZE>(s);
+		winsock::socket<> s;
+		assert(sockopt<GET_SO::TYPE>(s) == static_cast<int>(SOCK::STREAM));
 		assert(0 == sockopt<SET_SO::SNDBUF>(s, 10));
-		auto sb = sockopt<GET_SO::SNDBUF>(s);
-		assert(sb == 10);
+		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
 	}
 	{
-		winsock::socket s;
+		winsock::socket<> s;
+		//s.connect("https://ipecho.net/plain", IPPORT::ECHO);
+	}
+	{
+		winsock::socket<> s;
 
 		// time-e-wwv.nist.gov 	2610:20:6f97:97::6 	
 		i = s.connect("time-a-g.nist.gov", "13");
@@ -42,7 +72,7 @@ int test_socket()
 		puts(buf);
 	}
 	{
-		winsock::socket s;
+		winsock::socket<> s;
 
 		assert (0 == s.connect("time-a-g.nist.gov", "13"));
 		assert(i == 0);
@@ -54,7 +84,7 @@ int test_socket()
 	}
 	/*
 	{
-		winsock::socket s;
+		winsock::socket<> s;
 		assert(0 == s.connect("google.com", "http"));
 		s.send("GET / HTTP/1.1\r\nHost: google.com\r\n\r\n");
 		//s.send("Host: google.com\r\n\r\n");
@@ -64,7 +94,7 @@ int test_socket()
 	}
 	*/
 	{
-		winsock::socket s;
+		winsock::socket<> s;
 		assert(0 == s.connect("www.google.com", "http"));
 		s.send("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n");
 		s >> std::cout;
@@ -72,22 +102,37 @@ int test_socket()
 
 	return i;
 }
-
+/*
 int test_hints()
 {
-	winsock::socket s;
+	winsock::socket<> s;
 	auto hint = s.hints();
 	auto type = sockopt<GET_SO::TYPE>(s);
 	assert(type == hint.ai_socktype);
 
 	return 0;
 }
+*/
+int test_udp_socket()
+{
+	winsock::sockaddr<> sa(INADDR::ANY, 2345);
+	udp::server::socket<> srv(sa);
+	srv.sendto(sa, "hi", 2);
+	udp::client::socket<> cli;
+	char buf[3];
+	//sockaddr sa = cli.recvfrom()
 
+
+	return 0;
+}
 
 int main()
 {
-	test_hints();
+	test_sockaddr();
+	test_addrinfo();
+	//test_hints();
 	test_socket();
+	test_udp_socket();
 
 	return 0;
 }

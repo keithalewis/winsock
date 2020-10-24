@@ -4,12 +4,14 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <ws2def.h>
+#include <array>
 #include <compare>
 #include <cstring>
 #include <iostream>
 #include <iterator>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -17,7 +19,7 @@
 
 namespace winsock {
 
-	/// internet address
+	// internet address
 	enum class INADDR : ULONG {
 		ANY = INADDR_ANY,
 		LOOPBACK = INADDR_LOOPBACK,
@@ -101,7 +103,7 @@ namespace winsock {
 	};
 	
 	///  port IPPORT
-	enum class IPPORT : int {
+	enum IPPORT {
 		TCPMUX = IPPORT_TCPMUX,
 		ECHO = IPPORT_ECHO,
 		DISCARD = IPPORT_DISCARD,
@@ -160,8 +162,7 @@ namespace winsock {
 #define ERROR_FOOBAR ERROR
 #undef ERROR
 #endif
-
-	/// getsockopt(SOL_SOCKET, ...)
+	// getsockopt(SOL_SOCKET, ...)
 #define GET_SOL_SOCKET(X) \
 	X(ACCEPTCONN, BOOL, "The socket is listening.") \
 	X(BROADCAST, BOOL, "The socket is configured for the transmission and receipt of broadcast messages.") \
@@ -250,9 +251,28 @@ namespace winsock {
 	
 	//!!! inline ... linger(SOCKET s, ...)
 
-	/// <summary>
+	// addrinfo ai_flags for getaddrinfo
+#define AI_ENUM(X) \
+	X(PASSIVE, "Setting the AI_PASSIVE flag indicates the caller intends to use the returned socket address structure in a call to the bind function. When the AI_PASSIVE flag is set and pNodeName is a NULL pointer, the IP address portion of the socket address structure is set to INADDR_ANY for IPv4 addresses and IN6ADDR_ANY_INIT for IPv6 addresses.") \
+	X(CANONNAME, "If neither AI_CANONNAME nor AI_NUMERICHOST is used, the getaddrinfo function attempts resolution. If a literal string is passed getaddrinfo attempts to convert the string, and if a host name is passed the getaddrinfo function attempts to resolve the name to an address or multiple addresses.") \
+	X(NUMERICHOST, "When the AI_NUMERICHOST bit is set, the pNodeName parameter must contain a non-NULL numeric host address string, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
+	X(NUMERICSERV, "When the AI_NUMERICSERV bit is set, the pServiceName parameter must contain a non-NULL numeric port number, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
+	X(ADDRCONFIG, "If the AI_ADDRCONFIG bit is set, getaddrinfo will resolve only if a global address is configured. If AI_ADDRCONFIG flag is specified, IPv4 addresses shall be returned only if an IPv4 address is configured on the local system, and IPv6 addresses shall be returned only if an IPv6 address is configured on the local system. The IPv4 or IPv6 loopback address is not considered a valid global address.") \
+	X(V4MAPPED, "If the AI_V4MAPPED bit is set and a request for IPv6 addresses fails, a name service request is made for IPv4 addresses and these addresses are converted to IPv4-mapped IPv6 address format.") \
+	X(NON_AUTHORITATIVE, "If the AI_NON_AUTHORITATIVE bit is set, the NS_EMAIL namespace provider returns both authoritative and non-authoritative results. If the AI_NON_AUTHORITATIVE bit is not set, the NS_EMAIL namespace provider returns only authoritative results.") \
+	X(SECURE, "If the AI_SECURE bit is set, the NS_EMAIL namespace provider will return results that were obtained with enhanced security to minimize possible spoofing.") \
+	X(RETURN_PREFERRED_NAMES, "If the AI_RETURN_PREFERRED_NAMES is set, then no name should be provided in the pNodeName parameter. The NS_EMAIL namespace provider will return preferred names for publication.") \
+	X(FQDN, "If the AI_FQDN is set and a flat name (single label) is specified, getaddrinfo will return the fully qualified domain name that the name eventually resolved to. The fully qualified domain name is returned in the ai_canonname member in the associated addrinfo structure. This is different than AI_CANONNAME bit flag that returns the canonical name registered in DNS which may be different than the fully qualified domain name that the flat name resolved to. Only one of the AI_FQDN and AI_CANONNAME bits can be set. The getaddrinfo function will fail if both flags are present with EAI_BADFLAGS.") \
+	X(FILESERVER, "If the AI_FILESERVER is set, this is a hint to the namespace provider that the hostname being queried is being used in file share scenario. The namespace provider may ignore this hint.") \
+
+#define X(a,b) a = AI_ ## a,
+	enum class AI : int {
+		DEFAULT = 0,
+		AI_ENUM(X)
+	};
+#undef X
+
 	///  Initialize winsock.
-	/// </summary>
 	class WSA {
 		WSADATA wsaData;
 	public:
@@ -271,73 +291,69 @@ namespace winsock {
 	};
 	static inline const WSA wsa;
 	
-	class sockaddr : public ::sockaddr {
+	// construct value object from dotted IPv4 or IPv6 address string
+	template<AF af = AF::INET>
+	class sockaddr {
+		std::array<char, sizeof(::sockaddr)> sa;
+		int len_;
 	public:
-		sockaddr(AF family = AF::UNSPEC)
+		static AF family()
 		{
-			this->sa_family = static_cast<int>(family);
+			return af;
 		}
-		sockaddr(const char* addr_, IPPORT port_)
-			: sockaddr(AF::INET)
+		sockaddr(int len = static_cast<int>(sizeof(::sockaddr)))
+			: sa{}, len_(len)
+		{ 
+			sin().sin_family = static_cast<int>(af);
+		}
+		sockaddr(INADDR addr, int port)
+			: sockaddr()
 		{
-			addr(addr_);
-			port(port_);
+			sin().sin_addr.s_addr = static_cast<int>(addr);
+			sin().sin_port = htons(port);
 		}
-		sockaddr(const ::sockaddr& sa)
+		sockaddr(const char* host, int port)
+			: sockaddr()
 		{
-			CopyMemory(this, &sa, sizeof(sa));
+			int ret = inet_pton(static_cast<int>(af), host, (void*)&sin().sin_addr.s_addr);
+			if (ret != 1) {
+				//!!! use std::system_error and WSAGetLastError()
+				throw std::runtime_error("inet_pton failed");
+			}
+			sin().sin_port = htons(port);
 		}
-		sockaddr(const sockaddr& sa)
-			: sockaddr(static_cast<const ::sockaddr&>(sa))
-		{ }
-		sockaddr& operator=(const sockaddr& sa)
-		{
-			CopyMemory(this, &sa, sizeof(sa));
-
-			return *this;
-		}
+		sockaddr(const sockaddr&) = default;
+		sockaddr& operator=(const sockaddr&) = default;
+		sockaddr(sockaddr&&) = default;
+		sockaddr& operator=(sockaddr&&) = default;
 		~sockaddr()
 		{ }
 
-		::sockaddr_in& in() noexcept
+		::sockaddr_in& sin()
 		{
-			return *(::sockaddr_in*)this;
-		}
-		const ::sockaddr_in& in() const noexcept
-		{
-			return *(const ::sockaddr_in*)this;
+			return *(::sockaddr_in*)sa.data();
 		}
 
-		IPPORT port() const noexcept
+		::sockaddr* operator&()
 		{
-			return (IPPORT)ntohs(in().sin_port);
+			return (::sockaddr*)sa.data();
 		}
-		sockaddr& port(IPPORT port) noexcept
+		const ::sockaddr* operator&() const
 		{
-			using type = decltype(in().sin_port);
+			return (const ::sockaddr*)sa.data();
+		}
 
-			in().sin_port = htons(static_cast<type>(port));
-
-			return *this;
-		}
-		//???
-		::in_addr& addr() noexcept
+		int& len()
 		{
-			return in().sin_addr;
+			return len_;
 		}
-		const ::in_addr& addr() const noexcept
+		int len() const
 		{
-			return in().sin_addr;
-		}
-		sockaddr& addr(const char* addr_)
-		{
-			int ret = inet_pton(this->sa_family, addr_, &addr());
-			//assert(1 == ret);
-
-			return *this;
+			return len_;
 		}
 	};
 	
+
 	/// forward iterator over addrinfo pointers
 	class addrinfo_iter {
 		::addrinfo* pai;
@@ -365,6 +381,7 @@ namespace winsock {
 		}
 	};
 
+	template<AF af = AF::INET>
 	class addrinfo {
 		::addrinfo* pai;
 	public:
@@ -373,8 +390,16 @@ namespace winsock {
 		{ }
 		addrinfo(PCSTR host, PCSTR port, const ::addrinfo& hints)
 		{
-			if (0 != ::getaddrinfo(host, port, &hints, &pai)) {
-				throw std::runtime_error("getaddrinfo failed");
+			// The getaddrinfo function provides protocol-independent translation from an ANSI host name to an address.
+			int ret = ::getaddrinfo(host, port, &hints, &pai);
+			if (0 != ret) {
+				throw std::runtime_error(gai_strerrorA(ret)); //???lifetime
+			}
+			if (!pai) {
+				throw std::runtime_error("getaddrinfo found no addresses");
+			}
+			if (pai->ai_family != static_cast<int>(af)) {
+				throw std::runtime_error("getaddrinfo incompatible address family");
 			}
 		}
 		addrinfo(const addrinfo&) = default;
@@ -384,6 +409,19 @@ namespace winsock {
 			if (pai) {
 				freeaddrinfo(pai);
 			}
+		}
+
+		/// Return an addrinfo to use as hints
+		static ::addrinfo hints(SOCK type = SOCK::STREAM, IPPROTO proto = IPPROTO::TCP, AI flags = AI::DEFAULT)
+		{
+			::addrinfo ai;
+			memset(&ai, 0, sizeof(ai));
+			ai.ai_family = static_cast<int>(af);
+			ai.ai_socktype = static_cast<int>(type);
+			ai.ai_protocol = static_cast<int>(proto);
+			ai.ai_flags = static_cast<int>(flags);
+
+			return ai;
 		}
 
 		::sockaddr* operator&()
@@ -408,16 +446,17 @@ namespace winsock {
 		}
 	};
 
+	template<AF af = AF::INET>
 	class socket {
 		::SOCKET s;
 	public:
 		socket(::SOCKET s)
 			: s(s)
 		{ }
-		socket(AF family = AF::UNSPEC, SOCK socktype = SOCK::STREAM, IPPROTO protocol = IPPROTO::TCP)
+		socket(SOCK type = SOCK::STREAM, IPPROTO proto = IPPROTO::TCP)
 			: s(INVALID_SOCKET)
 		{
-			s = ::socket(static_cast<int>(family), static_cast<int>(socktype), static_cast<int>(protocol));
+			s = ::socket(static_cast<int>(af), static_cast<int>(type), static_cast<int>(proto));
 		}
 		socket(const socket&) = default;
 		socket& operator=(const socket&) = default;
@@ -428,59 +467,61 @@ namespace winsock {
 			}
 		}
 
-		/// <summary>
-		/// Use as a SOCKET
-		/// </summary>
+		/// Usable as a SOCKET
 		operator ::SOCKET()
 		{
 			return s;
 		}
 
 		/// Address of the peer to which a socket is connected.
-		std::pair<::sockaddr*, int> getpeername()
+		sockaddr<af> peername()
 		{
-			::sockaddr* name = nullptr;
-			int len = 0;
+			sockaddr<af> sa;
 
-			::getpeername(s, name, &len);
+			::getpeername(s, &sa, &sa.len());
 
-			return std::pair(name, len);
+			return sa;
 		}
-
+		
 		/// address family, socket type, protocol
-		int hints(::addrinfo* pai) const
+		::addrinfo hints() const
 		{
 			WSAPROTOCOL_INFO wsapi;
 			int len = sizeof(wsapi);
+			::addrinfo ai;
+
+			memset(&ai, 0, sizeof(ai));
 
 			int result = ::getsockopt(s, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&wsapi, &len);
 			if (0 == result) {
-				pai->ai_family = wsapi.iAddressFamily;
-				pai->ai_socktype = wsapi.iSocketType;
-				pai->ai_protocol = wsapi.iProtocol;
+				ai.ai_family = wsapi.iAddressFamily;
+				ai.ai_socktype = wsapi.iSocketType;
+				ai.ai_protocol = wsapi.iProtocol;
+				ai.ai_flags = 0; //??? wsapi.dwProviderFlags;
 			}
-
-			return result;
-		}
-		::addrinfo hints() const
-		{
-			::addrinfo ai;
-			ZeroMemory(&ai, sizeof(ai));
-
-			hints(&ai);
 
 			return ai;
 		}
-
+		
 		// server
 		int bind(const ::sockaddr* addr, int len)
 		{
 			return ::bind(s, addr, len);
+		}		
+		int bind(const sockaddr<af>& sa)
+		{
+			return bind(&sa, sa.len());
 		}
+		
 		SOCKET accept(::sockaddr* addr, int* len)
 		{
 			return ::accept(s, addr, len);
 		}
+		SOCKET accept(sockaddr<af>& sa)
+		{
+			return ::accept(s, &sa, &sa.len());
+		}
+
 		int listen(int backlog = SOMAXCONN)
 		{
 			return ::listen(s, backlog);
@@ -491,11 +532,15 @@ namespace winsock {
 		{
 			return ::connect(s, addr, len);
 		}
-		int connect(const char* host, const char* port)
+		int connect(const sockaddr<af>& sa)
+		{
+			return ::connect(s, &sa, sa.len());
+		}
+		int connect(const addrinfo<af>& ai)
 		{
 			int result = SOCKET_ERROR;
 
-			for (const auto [addr, len] : addrinfo(host, port, hints())) {
+			for (const auto [addr, len] : ai) {
 				result = connect(addr, len);
 				if (0 == result) {
 					break;
@@ -503,6 +548,10 @@ namespace winsock {
 			}
 
 			return result;
+		}
+		int connect(const char* host, const char* port)
+		{
+			return connect(addrinfo(host, port, hints()));
 		}
 
 		int send(const char* msg, int len = 0, MSG flags = MSG::DEFAULT)
@@ -522,11 +571,13 @@ namespace winsock {
 		}
 		socket& operator<<(std::istream& is)
 		{
-			// use SO_SNDBUF!!!
-			while (!is.eof()) {
-				char c;
-				is >> c;
-				send(&c, 1);
+			int sndbuf = sockopt<GET_SO::SNDBUF>(s);
+			std::vector<char> snd(sndbuf);
+			while (is.read(snd.data(), sndbuf)) {
+				send(snd.data(), static_cast<int>(is.gcount()));
+				if (is.eof()) {
+					break;
+				}
 			}
 
 			return *this;
@@ -565,14 +616,19 @@ namespace winsock {
 
 			return rcv;
 		}
-		//??? no copy
+		//??? no copy using stream_buf
 		socket& operator>>(std::ostream& os)
 		{
-			// use SO_RCVBUF!!!
-			char c = 0;
-			while (1 == recv(&c, 1)) {
-				os << c;
+			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
+			std::vector<char> rcv(rcvbuf);
+			int ret = 0;
+			while (0 < (ret = recv(rcv.data(), rcvbuf))) {
+				os.write(rcv.data(), ret);
+				if (ret < rcvbuf) {
+					break; //??? check for pending data
+				}
 			}
+			// if (ret == SOCKET_ERROR) ...
 
 			return *this;
 		}
@@ -587,17 +643,19 @@ namespace winsock {
 		}
 
 	};
+
+	// Specialize default values for constructor and member functions.
 	namespace tcp {
 		namespace client {
+			template<AF af = AF::INET>
 			class socket {
-				winsock::socket s;
+				winsock::socket<af> s;
 			public:
-				socket()
-					: s(AF::UNSPEC, SOCK::STREAM, IPPROTO::TCP)
-				{ }
-				int connect(const char* host, const char* port)
+				// create and connect socket
+				socket(const char* host, const char* port)
+					: s(SOCK::STREAM, IPPROTO::TCP)
 				{
-					return s.connect(host, port);
+					s.connect(host, port);
 				}
 			};
 		}
@@ -620,29 +678,61 @@ namespace winsock {
 		}
 	}
 	
+	// Specialize default values for constructor
 	namespace udp {
 		namespace client {
+			template<AF af = AF::INET>
 			class socket {
-				winsock::socket s;
+				winsock::socket<af> s;
 			public:
 				socket()
-					: s(AF::INET, SOCK::DGRAM, IPPROTO::UDP)
+					: s(SOCK::DGRAM, IPPROTO::UDP)
 				{ }
-				int sendto(char* buf, int len, MSG flags = MSG::DEFAULT)
+				operator ::SOCKET()
 				{
-					return 0; // s.sendto(buf, len, flags, to, tolen);
+					return s;
 				}
-				int recvfrom(char* buf, int len, MSG flags = MSG::DEFAULT)
+				int sendto(const sockaddr<af>& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
 				{
-					//int len = sizeof(addr);
+					return s.sendto(buf, len, flags, &sa, sa.len());
+				}
+				int recvfrom(sockaddr<af>& sa, char* buf, int len, MSG flags = MSG::DEFAULT)
+				{
+					return s.recvfrom(buf, len, flags, &sa, &sa.len());
+				}
+			};
+		}
+		namespace server {
+			template<AF af = AF::INET>
+			class socket {
+				winsock::socket<af> s;
+			public:
+				// create and bind the udp socket
+				socket(const sockaddr<af>& sa)
+					: s(SOCK::DGRAM, IPPROTO::UDP)
+				{
+					s.bind(sa);
+				}
+				sockaddr<af> recvfrom(char* buf, int len, MSG flags = MSG::WAITALL)
+				{
+					sockaddr<af> sa;
 
-					//return s.recvfrom(buf, len, flags, (const ::sockaddr*)&addr, &len);
-					return len;
+					int n = s.recvfrom(buf, len, flags, &sa, &len);
+					if (n > 0 && n < len) {
+						buf[n] = 0;
+					}
+
+					return sa;
+				}
+				int sendto(const sockaddr<af>& sa, const char* buf, int len, MSG flags = MSG::DEFAULT) //???MSG::CONFIRM
+				{
+					return s.sendto(buf, len, flags, &sa, sa.len());
 				}
 			};
 		}
 	}
 	
 	/// Define bitwise operators.
-	DEFINE_ENUM_FLAG_OPERATORS(MSG)
+	DEFINE_ENUM_FLAG_OPERATORS(MSG);
+	DEFINE_ENUM_FLAG_OPERATORS(AI);
 }
