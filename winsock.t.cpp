@@ -39,7 +39,7 @@ int test_sockaddr()
 
 int test_addrinfo()
 {
-	::addrinfo ai = winsock::addrinfo<>::hints();
+	::addrinfo ai = winsock::addrinfo<>::hints(SOCK::STREAM, winsock::IPPROTO::TCP, AI::DEFAULT);
 	assert(ai.ai_flags == 0);
 	assert(ai.ai_family == AF_INET);
 	assert(ai.ai_socktype == SOCK_STREAM);
@@ -102,13 +102,17 @@ int test_socket()
 	{
 		winsock::socket<> s;
 		assert(0 == s.connect("www.google.com", "http"));
-		s.send("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n");
+		s.send("GET / HTTP/1.1\r\n\r\n");
 		s >> std::cout;
+	}
+	{
+		winsock::tcp::client::socket<> s("www.google.com", "http");
+		s << "GET / HTTP/1.1\r\n\r\n" >> std::cout;
 	}
 
 	return i;
 }
-/*
+
 int test_hints()
 {
 	winsock::socket<> s;
@@ -118,15 +122,19 @@ int test_hints()
 
 	return 0;
 }
-*/
+
 int test_udp_socket()
 {
 	winsock::sockaddr<> sa(INADDR::ANY, 2345);
 	udp::server::socket<> srv(sa);
 	srv.sendto(sa, "hi", 2);
+	winsock::sockaddr<> srvsa;
+	int ret = getpeername(srv, &srvsa, &srvsa.len());
+
 	udp::client::socket<> cli;
 	char buf[3];
-	winsock::sockaddr<> sa_ = cli.recvfrom(buf, 2);
+	int i = cli.recvfrom(sa, buf, 3);
+	assert(i == 2);
 
 	return 0;
 }
@@ -135,7 +143,7 @@ int main()
 {
 	test_sockaddr();
 	test_addrinfo();
-	//test_hints();
+	test_hints();
 	test_socket();
 	test_udp_socket();
 
