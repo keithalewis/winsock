@@ -1,6 +1,6 @@
 # winsock
 
-Sockets that work like `netcat`.
+Parameterize sockets and associated address structures by address family.
 
 ## TCP server
 

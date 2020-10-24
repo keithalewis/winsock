@@ -149,13 +149,14 @@ namespace winsock {
 		ROUTESERVER = IPPORT_ROUTESERVER,
 	};
 	
-	/// send/recv flags
-	enum class OMSG : int {
+	/// send flags
+	enum class SNDMSG : int {
 		DEFAULT = 0,
 		DONTROUTE = MSG_DONTROUTE,
 		OOB = MSG_OOB,
 	};
-	enum class IMSG : int {
+	/// recv flags
+	enum class RCVMSG : int {
 		DEFAULT = 0,
 		OOB = MSG_OOB,
 		PEEK = MSG_PEEK,
@@ -310,13 +311,13 @@ namespace winsock {
 		{ 
 			sin().sin_family = static_cast<int>(af);
 		}
-		sockaddr(INADDR addr, int port)
+		sockaddr(INADDR addr, u_short port)
 			: sockaddr()
 		{
 			sin().sin_addr.s_addr = static_cast<int>(addr);
 			sin().sin_port = htons(port);
 		}
-		sockaddr(const char* host, int port)
+		sockaddr(const char* host, u_short port)
 			: sockaddr()
 		{
 			int ret = inet_pton(static_cast<int>(af), host, (void*)&sin().sin_addr.s_addr);
@@ -463,8 +464,9 @@ namespace winsock {
 		{
 			s = ::socket(static_cast<int>(af), static_cast<int>(type), static_cast<int>(proto));
 		}
-		socket(const socket&) = default;
-		socket& operator=(const socket&) = default;
+		socket(const socket&) = delete;
+		socket& operator=(const socket&) = delete;
+		// may need to call shutdown first!
 		~socket()
 		{
 			if (s != INVALID_SOCKET) {
@@ -473,13 +475,13 @@ namespace winsock {
 		}
 
 		/// Usable as a SOCKET
-		operator ::SOCKET()
+		operator ::SOCKET() const
 		{
 			return s;
 		}
 
 		/// Address of the peer to which a socket is connected.
-		sockaddr<af> peername()
+		sockaddr<af> peername() const
 		{
 			sockaddr<af> sa;
 
@@ -509,39 +511,39 @@ namespace winsock {
 		}
 		
 		// server
-		int bind(const ::sockaddr* addr, int len)
+		int bind(const ::sockaddr* addr, int len) const
 		{
 			return ::bind(s, addr, len);
 		}		
-		int bind(const sockaddr<af>& sa)
+		int bind(const sockaddr<af>& sa) const
 		{
 			return bind(&sa, sa.len());
 		}
 		
-		::SOCKET accept(::sockaddr* addr, int* len)
+		::SOCKET accept(::sockaddr* addr, int* len) const
 		{
 			return ::accept(s, addr, len);
 		}
-		socket<af> accept(sockaddr<af>& sa)
+		socket<af> accept(sockaddr<af>& sa) const
 		{
 			return socket<af>(::accept(s, &sa, &sa.len()));
 		}
 
-		int listen(int backlog = SOMAXCONN)
+		int listen(int backlog = SOMAXCONN) const
 		{
 			return ::listen(s, backlog);
 		}
 
 		// client
-		int connect(const ::sockaddr* addr, int len)
+		int connect(const ::sockaddr* addr, int len) const
 		{
 			return ::connect(s, addr, len);
 		}
-		int connect(const sockaddr<af>& sa)
+		int connect(const sockaddr<af>& sa) const
 		{
 			return ::connect(s, &sa, sa.len());
 		}
-		int connect(const addrinfo<af>& ai)
+		int connect(const addrinfo<af>& ai) const
 		{
 			int result = SOCKET_ERROR;
 
@@ -554,12 +556,12 @@ namespace winsock {
 
 			return result;
 		}
-		int connect(const char* host, const char* port)
+		int connect(const char* host, const char* port) const
 		{
 			return connect(addrinfo(host, port, hints()));
 		}
 
-		int send(const char* msg, int len = 0, OMSG flags = OMSG::DEFAULT)
+		int send(const char* msg, int len = 0, SNDMSG flags = SNDMSG::DEFAULT) const
 		{
 			if (0 == len) {
 				len = static_cast<int>(strlen(msg));
@@ -574,38 +576,13 @@ namespace winsock {
 
 			return len;
 		}
-		
-		template<class F>
-		class flags {
-			F flag;
-		public:
-			flags(F flag)
-				: flag(flag)
-			{ }
-		private:
-			template<class S>
-			class flagger {
-				S& s;
-				T flag;
-			public:
-				flagger(S& s, const flags& flag)
-					: s(s), flag(flag.flag)
-				{ }
-				template<class T>
-				flagger& operator>>(S& s)
-				{
-					return *this;
-				}
-			};
-			friend flags::oflagger operator<<(const flags&);
-		};
 		/// <summary>
 		/// Send input stream to socket. 
 		/// </summary>
-		/// <param name="is"></param>
-		/// <param name="flags"></param>
+		/// <param name="is">input stream</param>
+		/// <param name="flags">input flags</param>
 		/// <returns>Total number of characters written</returns>
-		int send(std::istream& is, IMSG flags = IMSG::DEFAULT)
+		int send(std::istream& is, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			int len = 0;
 			int sndbuf = sockopt<GET_SO::SNDBUF>(s);
@@ -620,16 +597,65 @@ namespace winsock {
 
 			return len;
 		}
-		
 		socket& operator<<(const char* msg)
 		{
 			send(msg);
 
 			return *this;
 		}
-		
+
+		// istream proxy ??? oflags
+		class sndflags {
+			SNDMSG flags;
+		public:
+			sndflags(const SNDMSG& flags)
+				: flags(flags)
+			{ } 
+			class send {
+				const socket<af>& s;
+				sndflags flags;
+			public:
+				send(const socket<af>& s, sndflags flags)
+					: s(s), flags(flags)
+				{ }
+				~send()
+				{
+
+				}
+				send& operator<<(std::istream& is)
+				{
+					s.send(is, flags.flags);
+
+					return *this;
+				}
+				send& operator<<(const char* msg)
+				{
+					s.send(msg, 0, flags.flags);
+
+					return *this;
+				}
+				template<size_t N>
+				send& operator<<(const char (&msg)[N])
+				{
+					s.send(msg, static_cast<int>(N), flags.flags);
+
+					return *this;
+				}
+			};
+		};
+		static sndflags flags(const SNDMSG& flags)
+		{
+			return sndflags(flags);
+		}
+		typename sndflags::send operator<<(const sndflags& flags)
+		{
+			return std::move(sndflags::send(s, flags));
+		}
+
+			
 		socket& operator<<(std::istream& is)
 		{
+			//!!!find appropriate size for connection
 			int sndbuf = sockopt<GET_SO::SNDBUF>(s);
 			std::vector<char> snd(sndbuf);
 			while (is.read(snd.data(), sndbuf)) {
@@ -642,11 +668,11 @@ namespace winsock {
 			return *this;
 		}
 
-		int recv(char* buf, int len, IMSG flags = IMSG::DEFAULT)
+		int recv(char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
 		}
-		std::vector<char> recv(IMSG flags = IMSG::DEFAULT)
+		std::vector<char> recv(RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
 			std::vector<char> rcv(rcvbuf);
@@ -692,20 +718,20 @@ namespace winsock {
 			return *this;
 		}
 
-		int sendto(const char* buf, int len, OMSG flags, const ::sockaddr* to, int tolen) 
+		int sendto(const char* buf, int len, SNDMSG flags, const ::sockaddr* to, int tolen)  const
 		{
 			return ::sendto(s, buf, len, static_cast<int>(flags), to, tolen);
 		}
-		int sendto(const sockaddr<af>& sa, const char* buf, int len, OMSG flags = OMSG::DEFAULT) //???MSG::CONFIRM
+		int sendto(const sockaddr<af>& sa, const char* buf, int len, SNDMSG flags = SNDMSG::DEFAULT)  const//???MSG::CONFIRM
 		{
 			return sendto(buf, len, flags, &sa, sa.len());
 		}
 
-		int recvfrom(char* buf, int len, IMSG flags, ::sockaddr* in, int* inlen)
+		int recvfrom(char* buf, int len, RCVMSG flags, ::sockaddr* in, int* inlen) const
 		{
 			return ::recvfrom(s, buf, len, static_cast<int>(flags), in, inlen);
 		}
-		int recvfrom(sockaddr<af>& sa, char* buf, int len, IMSG flags = IMSG::DEFAULT)
+		int recvfrom(sockaddr<af>& sa, char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			return recvfrom(buf, len, flags, &sa, &sa.len());
 		}
@@ -786,7 +812,7 @@ namespace winsock {
 	}
 	
 	/// Define bitwise operators.
-	DEFINE_ENUM_FLAG_OPERATORS(OMSG);
-	DEFINE_ENUM_FLAG_OPERATORS(IMSG);
+	DEFINE_ENUM_FLAG_OPERATORS(SNDMSG);
+	DEFINE_ENUM_FLAG_OPERATORS(RCVMSG);
 	DEFINE_ENUM_FLAG_OPERATORS(AI);
 }

@@ -51,6 +51,7 @@ int test_addrinfo()
 int test_socket()
 {
 	int i = 0;
+	static_assert(sizeof(winsock::socket<>) == sizeof(::SOCKET));
 	{
 		winsock::socket<> s;
 		assert(sockopt<GET_SO::TYPE>(s) == static_cast<int>(SOCK::STREAM));
@@ -102,12 +103,15 @@ int test_socket()
 	{
 		winsock::socket<> s;
 		assert(0 == s.connect("www.google.com", "http"));
+		winsock::sockaddr<> sa;
+		sa = s.peername();
 		s.send("GET / HTTP/1.1\r\n\r\n");
 		s >> std::cout;
 	}
 	{
 		winsock::tcp::client::socket<> s("www.google.com", "http");
-		s << "GET / HTTP/1.1\r\n\r\n" >> std::cout;
+		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1\r\n\r\n";
+		s >> std::cout;
 	}
 
 	return i;
@@ -129,7 +133,8 @@ int test_udp_socket()
 	udp::server::socket<> srv(sa);
 	srv.sendto(sa, "hi", 2);
 	winsock::sockaddr<> srvsa;
-	int ret = getpeername(srv, &srvsa, &srvsa.len());
+	int ret;
+	ret = getpeername(srv, &srvsa, &srvsa.len());
 
 	udp::client::socket<> cli;
 	char buf[3];
