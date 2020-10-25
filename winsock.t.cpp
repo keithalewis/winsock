@@ -5,6 +5,8 @@
 #include "winsock.h"
 
 using namespace winsock;
+using winsock::socket;
+using winsock::IPPROTO;
 
 struct bl {
 	const char* buf;
@@ -39,7 +41,7 @@ int test_sockaddr()
 
 int test_addrinfo()
 {
-	::addrinfo ai = winsock::addrinfo<>::hints(SOCK::STREAM, winsock::IPPROTO::TCP, AI::DEFAULT);
+	::addrinfo ai = winsock::addrinfo<>::hints(SOCK::STREAM, IPPROTO::TCP, AI::DEFAULT);
 	assert(ai.ai_flags == 0);
 	assert(ai.ai_family == AF_INET);
 	assert(ai.ai_socktype == SOCK_STREAM);
@@ -53,23 +55,44 @@ int test_socket()
 	int i = 0;
 	static_assert(sizeof(winsock::socket<>) == sizeof(::SOCKET));
 	{
-		winsock::socket<> s;
-		assert(sockopt<GET_SO::TYPE>(s) == static_cast<int>(SOCK::STREAM));
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
+		assert(sockopt<GET_SO::TYPE>(s) == SOCK_STREAM);
+		auto pi = sockopt<GET_SO::PROTOCOL_INFO>(s);
+		assert(pi.iAddressFamily == AF_INET);
+		assert(pi.iSocketType == SOCK_STREAM);
+		assert(pi.iProtocol == IPPROTO_TCP);
+		
 		assert(0 == sockopt<SET_SO::SNDBUF>(s, 10));
 		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
 	}
+	// https://tools.ietf.org/html/rfc862
+	{
+		winsock::sockaddr<> sa("127.0.0.1", IPPORT::ECHO);
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
+		s.connect(sa);
+		s.send("hi", 2);
+		char buf[3];
+		s.recv(buf, 2);
+	}
+	// https://www.ietf.org/rfc/rfc5905.txt
+	{
+		winsock::sockaddr<> sa("132.163.96.2", IPPORT::TIMESERVER);
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
+		s.connect(sa);
+	}
 	{
 		// https://ipecho.net/plain 
-		winsock::socket<> s;
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 		s.connect("ipecho.net", "https");
 		s.send("GET /plain HTTP/1.1\r\nHost: ipecho.net\r\n\r\n");
 		//s.send("GET /plain HTTP/1.1\r\n\r\n");
 		char buf[1024];
 		int n = s.recv(buf, 1024);
+		assert(0 < n && n <= 1023);
 		buf[n] = 0;
 	}
 	{
-		winsock::socket<> s;
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 
 		// time-e-wwv.nist.gov 	2610:20:6f97:97::6 	
 		i = s.connect("time-a-g.nist.gov", "13");
@@ -79,11 +102,11 @@ int test_socket()
 		puts(buf);
 	}
 	{
-		winsock::socket<> s;
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 
 		assert (0 == s.connect("time-a-g.nist.gov", "13"));
 		assert(i == 0);
-		std::vector<char> rcv = s.recv();
+		std::string rcv = s.recv();
 		assert(rcv.size() != 0);
 		rcv.push_back(0);
 		puts(rcv.data());
@@ -91,7 +114,7 @@ int test_socket()
 	}
 	/*
 	{
-		winsock::socket<> s;
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 		assert(0 == s.connect("google.com", "http"));
 		s.send("GET / HTTP/1.1\r\nHost: google.com\r\n\r\n");
 		//s.send("Host: google.com\r\n\r\n");
@@ -101,7 +124,7 @@ int test_socket()
 	}
 	*/
 	{
-		winsock::socket<> s;
+		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 		assert(0 == s.connect("www.google.com", "http"));
 		winsock::sockaddr<> sa;
 		sa = s.peername();
@@ -119,7 +142,7 @@ int test_socket()
 
 int test_hints()
 {
-	winsock::socket<> s;
+	winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 	auto hint = s.hints();
 	auto type = sockopt<GET_SO::TYPE>(s);
 	assert(type == hint.ai_socktype);

@@ -12,8 +12,8 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 #include <utility>
-#include <vector>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -461,10 +461,7 @@ namespace winsock {
 	class socket {
 		::SOCKET s;
 	public:
-		socket(::SOCKET s)
-			: s(s)
-		{ }
-		socket(SOCK type = SOCK::STREAM, IPPROTO proto = IPPROTO::TCP)
+		socket(SOCK type, IPPROTO proto)
 			: s(INVALID_SOCKET)
 		{
 			s = ::socket(static_cast<int>(af), static_cast<int>(type), static_cast<int>(proto));
@@ -615,7 +612,7 @@ namespace winsock {
 		public:
 			istream_proxy(const SNDMSG& flags)
 				: flags(flags)
-			{ } 
+			{ }
 			class send {
 				const socket<af>& s;
 				istream_proxy flags;
@@ -658,10 +655,8 @@ namespace winsock {
 		}
 		typename istream_proxy::send operator<<(const istream_proxy& flags)
 		{
-			return std::move(istream_proxy::send(*this, flags));
-		}
-
-			
+			return istream_proxy::send(*this, flags);
+		}			
 		socket& operator<<(std::istream& is)
 		{
 			//!!!find appropriate size for connection
@@ -681,36 +676,30 @@ namespace winsock {
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
 		}
-		// int recv(std::ostream& os, RCVMSG flags = RCVMSG::DEFAULT) const
-		// { ... }
-		std::vector<char> recv(RCVMSG flags = RCVMSG::DEFAULT) const
+		int recv(std::ostream& os, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
 			std::vector<char> rcv(rcvbuf);
-
-			int ret = 0, off = 0;
-			while (0 != (ret = recv(rcv.data() + off, rcvbuf, flags))) {
-				// if (flags == MSG::OOB) {}
-				if (ret == SOCKET_ERROR) {
-					// int err = WSAGetLastError();
-					rcv.resize(0);
-
-					break;
-				}
-				else if (ret != rcvbuf) {
-					// assert(ret < rcvbuf);
-					rcv.erase(rcv.begin() + off + ret, rcv.end());
-
-					break;
-				}
-				else {
-					// more data to be read
-					rcv.resize(rcv.size() + rcvbuf);
-					off += rcvbuf;
+			int ret = 0;
+			while (0 < (ret = recv(rcv.data(), rcvbuf, flags))) {
+				os.write(rcv.data(), ret);
+				if (ret < rcvbuf) {
+					break; //??? check for pending data
 				}
 			}
+			// if (ret == SOCKET_ERROR) ...
 
-			return rcv;
+			return ret;
+		}
+		std::string recv(RCVMSG flags = RCVMSG::DEFAULT) const
+		{
+			std::ostringstream oss;
+
+			if (INVALID_SOCKET == recv(oss, flags)) {
+				throw std::runtime_error("recv failed");
+			}
+
+			return oss.str();
 		}
 		//??? no copy using stream_buf
 		socket& operator>>(std::ostream& os)
@@ -755,7 +744,6 @@ namespace winsock {
 
 					return *this;
 				}
-				/*
 				recv& operator>>(const char* msg)
 				{
 					s.recv(msg, 0, flags.flags);
@@ -769,10 +757,9 @@ namespace winsock {
 
 					return *this;
 				}
-				*/
 			};
 		};
-		// s << flags(SNDMSG::XXX) << is ...
+		// s >> flags(RCVMSG::XXX) >> os ...
 		static ostream_proxy flags(const RCVMSG& flags)
 		{
 			return ostream_proxy(flags);
