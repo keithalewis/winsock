@@ -102,7 +102,8 @@ namespace winsock {
 		RAW = IPPROTO_RAW,
 	};
 	
-	///  port IPPORT
+	/// Well-known ports IPPORT
+	/// Not and enum class since any unsigned short can be a port number.
 	enum IPPORT {
 		TCPMUX = IPPORT_TCPMUX,
 		ECHO = IPPORT_ECHO,
@@ -167,7 +168,7 @@ namespace winsock {
 #define ERROR_FOOBAR ERROR
 #undef ERROR
 #endif
-	// getsockopt(SOL_SOCKET, ...)
+	/// Top level socket options getsockopt(SOL_SOCKET, ...)
 #define GET_SOL_SOCKET(X) \
 	X(ACCEPTCONN, BOOL, "The socket is listening.") \
 	X(BROADCAST, BOOL, "The socket is configured for the transmission and receipt of broadcast messages.") \
@@ -226,6 +227,9 @@ namespace winsock {
 	};
 #undef SO_ENUM
 	
+	/// <summary>
+	///  Socket option types.
+	/// </summary>
 	template<enum GET_SO T> struct get_sol_socket_type { };
 #define GET_SO_SOCKET_TYPE(name, T, desc) template<> struct get_sol_socket_type<GET_SO::##name> { typedef T type; };
 	GET_SOL_SOCKET(GET_SO_SOCKET_TYPE)
@@ -296,7 +300,7 @@ namespace winsock {
 	};
 	static inline const WSA wsa;
 	
-	// construct value object from dotted IPv4 or IPv6 address string
+	/// Value object from dotted IPv4 or IPv6 address string
 	template<AF af = AF::INET>
 	class sockaddr {
 		std::array<char, sizeof(::sockaddr)> sa;
@@ -359,7 +363,7 @@ namespace winsock {
 	};
 	
 
-	/// forward iterator over addrinfo pointers
+	/// Forward iterator over addrinfo pointers
 	class addrinfo_iter {
 		::addrinfo* pai;
 	public:
@@ -450,6 +454,7 @@ namespace winsock {
 		{
 			return addrinfo_iter();
 		}
+		//!!! Add functions to get info about packet size for address.
 	};
 
 	template<AF af = AF::INET>
@@ -604,24 +609,27 @@ namespace winsock {
 			return *this;
 		}
 
-		// istream proxy ??? oflags
-		class sndflags {
+		// istream proxy
+		class istream_proxy {
 			SNDMSG flags;
 		public:
-			sndflags(const SNDMSG& flags)
+			istream_proxy(const SNDMSG& flags)
 				: flags(flags)
 			{ } 
 			class send {
 				const socket<af>& s;
-				sndflags flags;
+				istream_proxy flags;
 			public:
-				send(const socket<af>& s, sndflags flags)
+				send(const socket<af>& s, istream_proxy flags)
 					: s(s), flags(flags)
 				{ }
+				send(const send&) = default;
+				send& operator=(const send&) = default;
+				send(send&&) = default;
+				send& operator=(send&&) = default;
 				~send()
-				{
+				{ }
 
-				}
 				send& operator<<(std::istream& is)
 				{
 					s.send(is, flags.flags);
@@ -643,13 +651,14 @@ namespace winsock {
 				}
 			};
 		};
-		static sndflags flags(const SNDMSG& flags)
+		// s << flags(SNDMSG::XXX) << is ...
+		static istream_proxy flags(const SNDMSG& flags)
 		{
-			return sndflags(flags);
+			return istream_proxy(flags);
 		}
-		typename sndflags::send operator<<(const sndflags& flags)
+		typename istream_proxy::send operator<<(const istream_proxy& flags)
 		{
-			return std::move(sndflags::send(s, flags));
+			return std::move(istream_proxy::send(*this, flags));
 		}
 
 			
@@ -672,6 +681,8 @@ namespace winsock {
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
 		}
+		// int recv(std::ostream& os, RCVMSG flags = RCVMSG::DEFAULT) const
+		// { ... }
 		std::vector<char> recv(RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
@@ -716,6 +727,59 @@ namespace winsock {
 			// if (ret == SOCKET_ERROR) ...
 
 			return *this;
+		}
+		// ostream proxy
+		class ostream_proxy {
+			RCVMSG flags;
+		public:
+			ostream_proxy(const RCVMSG& flags)
+				: flags(flags)
+			{ }
+			class recv {
+				const socket<af>& s;
+				ostream_proxy flags;
+			public:
+				recv(const socket<af>& s, ostream_proxy flags)
+					: s(s), flags(flags)
+				{ }
+				recv(const recv&) = default;
+				recv& operator=(const recv&) = default;
+				recv(recv&&) = default;
+				recv& operator=(recv&&) = default;
+				~recv()
+				{ }
+
+				recv& operator>>(std::ostream& os)
+				{
+					s.recv(os, flags.flags);
+
+					return *this;
+				}
+				/*
+				recv& operator>>(const char* msg)
+				{
+					s.recv(msg, 0, flags.flags);
+
+					return *this;
+				}
+				template<size_t N>
+				recv& operator>>(const char(&msg)[N])
+				{
+					s.recv(msg, static_cast<int>(N), flags.flags);
+
+					return *this;
+				}
+				*/
+			};
+		};
+		// s << flags(SNDMSG::XXX) << is ...
+		static ostream_proxy flags(const RCVMSG& flags)
+		{
+			return ostream_proxy(flags);
+		}
+		typename ostream_proxy::recv operator<<(const ostream_proxy& flags)
+		{
+			return std::move(ostream_proxy::recv(*this, flags));
 		}
 
 		int sendto(const char* buf, int len, SNDMSG flags, const ::sockaddr* to, int tolen)  const
