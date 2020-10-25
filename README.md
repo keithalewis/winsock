@@ -11,9 +11,8 @@ intellisence assistence.
 
 The `socket` class provides type safe member functions for basic socket functions:
 `bind`, `accept`, `listen`, `connect`, `send`, `recv`, `sendto`, and `recvfrom`.
-The constructor requires the address family (`AF`) to be specified as the
-template parameter`
-and has two required arguments for the socket type (`SOCK`) and protocol (`IPPROTO`).
+The `winsock::socket` class requires the address family (`AF`) template parameter.
+The constructor has two required arguments for the socket type (`SOCK`) and protocol (`IPPROTO`).
 The class also implements `operator ::SOCKET()` so a `socket` can be used in any
 function having a Windows `SOCKET` argument.
 
