@@ -512,7 +512,10 @@ namespace winsock {
 			return ai;
 		}
 		
+		//
 		// server
+		//
+		// Establish the local association of the socket by assigning a local name to an unnamed socket.
 		int bind(const ::sockaddr* addr, int len) const
 		{
 			return ::bind(s, addr, len);
@@ -521,8 +524,20 @@ namespace winsock {
 		{
 			return bind(&sa, sa.len());
 		}
-		// bind(host, port)
-		
+		int bind(const char* host, const char* port) const
+		{
+			int result = SOCKET_ERROR;
+
+			for (const auto [addr, len] : addrinfo<af>(host, port)) {
+				result = bind(addr, len);
+				if (0 == result) {
+					break;
+				}
+			}
+
+			return result;
+		}
+
 		::SOCKET accept(::sockaddr* addr, int* len) const
 		{
 			return ::accept(s, addr, len);
@@ -537,7 +552,9 @@ namespace winsock {
 			return ::listen(s, backlog);
 		}
 
+		//
 		// client
+		//
 		int connect(const ::sockaddr* addr, int len) const
 		{
 			return ::connect(s, addr, len);

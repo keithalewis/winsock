@@ -2,7 +2,7 @@
 
 A header only affordances for Windows sockets.
 
-Sockets and associated structures parameterized by _address family_
+Sockets and associated structures are parameterized by _address family_
 so the C++ type system ensures compatibility. Enumerations are
 defined in `enum class`es to ensure argument correctness and provide
 intellisence assistence.
@@ -11,7 +11,7 @@ intellisence assistence.
 
 The `socket` class provides type safe member functions for basic socket functions:
 `bind`, `accept`, `listen`, `connect`, `send`, `recv`, `sendto`, and `recvfrom`.
-The `winsock::socket` class requires the address family (`AF`) template parameter.
+The `winsock::socket` class requires an address family (`AF`) template parameter.
 The constructor has two required arguments for the socket type (`SOCK`) and protocol (`IPPROTO`).
 The class also implements `operator ::SOCKET()` so a `socket` can be used in any
 function having a Windows `SOCKET` argument.
@@ -27,7 +27,16 @@ the statement, which is a feature.
 
 ## `sockaddr<AF>`
 
+This is a _value type_ with sufficient room to hold addresses. It has a constructor
+that takes a _dotted IP address_ string and an unsigned short port number. It calls
+`inet_pton` to fill in the address. The `::sockeraddr_in* operator&() const`, 
+`int len() const` and `int& len()` member functions are used in various socket related functions.
+
 ## `addrinfo<AF>`
+
+This can be used to look up approriate `sockaddr_in` data given a host and port string.
+When `bind` or `connect` is called it will traverse `ai_next` pointers until it finds
+a successful bind or connect address.
 
 ## `winsock::tcp`
 
