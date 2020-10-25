@@ -66,14 +66,17 @@ int test_socket()
 		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
 	}
 	// https://tools.ietf.org/html/rfc862
+	// sudo mknod -m 777 fifo p
+	// cat fifo | netcat -l -k localhost 8000 > fifo
 	{
-		winsock::sockaddr<> sa("127.0.0.1", IPPORT::ECHO);
 		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
-		s.connect(sa);
-		s.send("hi", 2);
-		char buf[3];
-		s.recv(buf, 2);
+		i = s.connect("localhost", "8000");
+		i = s.send("hi", 2);
+		char buf[1024];
+		i = s.recv(buf, 1023);
+		buf[i] = 0;
 	}
+	
 	// https://www.ietf.org/rfc/rfc5905.txt
 	{
 		winsock::sockaddr<> sa("132.163.96.2", IPPORT::TIMESERVER);
@@ -88,7 +91,7 @@ int test_socket()
 		//s.send("GET /plain HTTP/1.1\r\n\r\n");
 		char buf[1024];
 		int n = s.recv(buf, 1024);
-		assert(0 < n && n <= 1023);
+		//assert(0 < n && n <= 1023);
 		buf[n] = 0;
 	}
 	{
@@ -133,7 +136,7 @@ int test_socket()
 	}
 	{
 		winsock::tcp::client::socket<> s("www.google.com", "http");
-		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1\r\n\r\n";
+		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1" << "\r\n\r\n";
 		s >> std::cout;
 	}
 

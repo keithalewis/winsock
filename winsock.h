@@ -521,6 +521,7 @@ namespace winsock {
 		{
 			return bind(&sa, sa.len());
 		}
+		// bind(host, port)
 		
 		::SOCKET accept(::sockaddr* addr, int* len) const
 		{
@@ -577,6 +578,10 @@ namespace winsock {
 			}
 
 			return len;
+		}
+		int send(const std::string& msg, SNDMSG flags = SNDMSG::DEFAULT) const
+		{
+			return send(msg.c_str(), msg.length(), flags);
 		}
 		/// <summary>
 		/// Send input stream to socket. 
@@ -643,6 +648,12 @@ namespace winsock {
 				send& operator<<(const char (&msg)[N])
 				{
 					s.send(msg, static_cast<int>(N), flags.flags);
+
+					return *this;
+				}
+				send& operator<<(const std::string& msg)
+				{
+					s.send(msg, flags.flags);
 
 					return *this;
 				}
@@ -766,7 +777,7 @@ namespace winsock {
 		}
 		typename ostream_proxy::recv operator<<(const ostream_proxy& flags)
 		{
-			return std::move(ostream_proxy::recv(*this, flags));
+			return ostream_proxy::recv(*this, flags);
 		}
 
 		int sendto(const char* buf, int len, SNDMSG flags, const ::sockaddr* to, int tolen)  const

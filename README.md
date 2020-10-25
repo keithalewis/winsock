@@ -1,8 +1,8 @@
 # winsock
 
-A header only set of utilities for Windows sockets.
+A header only affordances for Windows sockets.
 
-Sockets and associated structures by parameterized by _address family_
+Sockets and associated structures parameterized by _address family_
 so the C++ type system ensures compatibility. Enumerations are
 defined in `enum class`es to ensure argument correctness and provide
 intellisence assistence.
@@ -26,15 +26,28 @@ For example, if `s` is a `socket` then `s << flags(SNDMSG::OOB) << "Hello";` cal
 `send(s, "Hello", 5, MSG_OOB)`. The flags stay in effect only for the duration of
 the statement, which is a feature.
 
-## `winsock::tcp::client<AF>`
+## `sockaddr<AF>`
 
-This class provides appropriate defaults for TCP clients. 
+## `addrinfo<AF>`
 
-```
-tcp::server::socket<AF::INET> s(host, port);
-```
+## `winsock::tcp`
 
-## UDP server
+This namespace contains classes for TCP socke streams.
+
+## `winsock::tcp::client::socket<AF>`
+
+This class provides appropriate defaults for TCP clients. The constructor takes host and port
+strings that are used by `getaddrinfo` and calls `connect`. There is also a constructor
+that takes a socket address.
+
+## `winsock::tcp::server::socket<AF::INET>`
+
+This class provides appropriate defaults for TCP servers. The constructor takes host and port
+strings that are used by `getaddrinfo` and calls `bind`. There is also a constructor
+that takes a socket address. It does not call `accept` or `listen`.
+
+## `winsock::udp`
+
 ``
 udp::server::socket<> s(IADDR::ANY, 1234); // create and bind
 while (0 < s.recv(sa, buf, len, MSG::WAITALL) {
