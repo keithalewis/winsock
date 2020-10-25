@@ -3,7 +3,7 @@
 A header only set of utilities for Windows sockets.
 
 Sockets and associated structures by parameterized by _address family_
-to have the C++ type system to ensure compatibility. Enumerations are
+so the C++ type system ensures compatibility. Enumerations are
 defined in `enum class`es to ensure argument correctness and provide
 intellisence assistence.
 
@@ -11,7 +11,8 @@ intellisence assistence.
 
 The `socket` class provides type safe member functions for basic socket functions:
 `bind`, `accept`, `listen`, `connect`, `send`, `recv`, `sendto`, and `recvfrom`.
-The constructor requires the address family to be either `AF::INET` or `AF::INET6`
+The constructor requires the address family (`AF`) to be specified as the
+template parameter`
 and has two required arguments for the socket type (`SOCK`) and protocol (`IPPROTO`).
 The class also implements `operator ::SOCKET()` so a `socket` can be used in any
 function having a Windows `SOCKET` argument.
