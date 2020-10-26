@@ -74,7 +74,9 @@ int test_socket()
 		i = s.send("hi", 2);
 		char buf[1024];
 		i = s.recv(buf, 1023);
-		buf[i] = 0;
+		if (i != SOCKET_ERROR) {
+			buf[i] = 0;
+		}
 	}
 	
 	// https://www.ietf.org/rfc/rfc5905.txt
