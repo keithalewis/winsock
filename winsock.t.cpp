@@ -102,7 +102,7 @@ int test_socket()
 		// time-e-wwv.nist.gov 	2610:20:6f97:97::6 	
 		i = s.connect("time-a-g.nist.gov", "13");
 		assert(i == 0);
-		char buf[1024];
+		char buf[1024] = { 0 };
 		buf[s.recv(buf, 1024)] = 0;
 		puts(buf);
 	}

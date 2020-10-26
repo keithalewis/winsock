@@ -14,6 +14,7 @@
 #include <string>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -460,6 +461,15 @@ namespace winsock {
 	template<AF af = AF::INET>
 	class socket {
 		::SOCKET s;
+		/*
+		// closesocket will be called on s_
+		static socket& assign(::SOCKET s_)
+		{
+			WSAPROTOCOL_INFO wsapi = sockopt<GET_SO::PROTOCOL_INFO>(s_);
+
+			return *this;
+		}
+		*/
 	public:
 		socket(SOCK type, IPPROTO proto)
 			: s(INVALID_SOCKET)
@@ -524,11 +534,11 @@ namespace winsock {
 		{
 			return bind(&sa, sa.len());
 		}
-		int bind(const char* host, const char* port) const
+		int bind(const addrinfo<af>& ai) const
 		{
 			int result = SOCKET_ERROR;
 
-			for (const auto [addr, len] : addrinfo<af>(host, port)) {
+			for (const auto [addr, len] : ai) {
 				result = bind(addr, len);
 				if (0 == result) {
 					break;
@@ -538,18 +548,18 @@ namespace winsock {
 			return result;
 		}
 
+		int listen(int backlog = SOMAXCONN) const
+		{
+			return ::listen(s, backlog);
+		}
+
 		::SOCKET accept(::sockaddr* addr, int* len) const
 		{
 			return ::accept(s, addr, len);
 		}
 		socket<af> accept(sockaddr<af>& sa) const
 		{
-			return socket<af>(::accept(s, &sa, &sa.len()));
-		}
-
-		int listen(int backlog = SOMAXCONN) const
-		{
-			return ::listen(s, backlog);
+			return assign(::accept(s, &sa, &sa.len()));
 		}
 
 		//
@@ -707,7 +717,7 @@ namespace winsock {
 		int recv(std::ostream& os, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
-			std::vector<char> rcv(rcvbuf);
+			std::vector<char> rcv(rcvbuf, 0);
 			int ret = 0;
 			while (0 < (ret = recv(rcv.data(), rcvbuf, flags))) {
 				os.write(rcv.data(), ret);
@@ -729,11 +739,12 @@ namespace winsock {
 
 			return oss.str();
 		}
+		
 		//??? no copy using stream_buf
 		socket& operator>>(std::ostream& os)
 		{
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
-			std::vector<char> rcv(rcvbuf);
+			std::vector<char> rcv(rcvbuf, 0);
 			int ret = 0;
 			while (0 < (ret = recv(rcv.data(), rcvbuf))) {
 				os.write(rcv.data(), ret);
@@ -848,10 +859,11 @@ namespace winsock {
 				using winsock::socket<af>::operator>>;
 
 				// create socket and bind
-				socket(const char* host, const char* port)
+				socket(const char* host, const char* port, AI flags = AI::PASSIVE)
 					: winsock::socket<af>(SOCK::STREAM, IPPROTO::TCP)
 				{ 
-					winsock::socket<af>::bind(host, port);
+					::addrinfo hints = addrinfo<af>::hints(SOCK::STREAM, IPPROTO::TCP, flags);
+					winsock::socket<af>::bind(addrinfo<af>(host, port, hints));
 					//???accept, listen
 				}
 			};
