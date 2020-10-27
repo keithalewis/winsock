@@ -151,6 +151,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="winsock_addr.h" />
     <ClInclude Include="winsock_buffer.h" />
     <ClInclude Include="coro.h" />
     <ClInclude Include="winsock.h" />

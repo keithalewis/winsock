@@ -27,6 +27,9 @@
     <ClInclude Include="winsock_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="winsock_addr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="winsock.t.cpp">
