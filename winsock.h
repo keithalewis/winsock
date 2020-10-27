@@ -39,7 +39,6 @@ namespace winsock {
 	};
 	static inline const WSA wsa;
 
-
 	template<AF af = AF::INET>
 	class socket {
 		::SOCKET s;
@@ -173,53 +172,31 @@ namespace winsock {
 			return connect(addrinfo(host, port, hints()));
 		}
 
-		int send(const char* msg, int len = 0, SNDMSG flags = SNDMSG::DEFAULT) const
-		{
-			if (0 == len) {
-				len = static_cast<int>(strlen(msg));
-			}
-
-			for (int ret = 0, n = len; n; n -= ret) {
-				ret = ::send(s, msg, len, static_cast<int>(flags));
-				if (SOCKET_ERROR == ret) {
-					return ret;
-				}
-			}
-
-			return len;
-		}
-		int send(const std::string& msg, SNDMSG flags = SNDMSG::DEFAULT) const
-		{
-			return send(msg.c_str(), msg.length(), flags);
-		}
-		/*
-		int send(const buffer& msg, SNDMSG flags = SNDMSG::DEFAULT) const
-		{
-			return send(&msg, msg.len(), flags);
-		}
-		*/
-		/// <summary>
-		/// Send input stream to socket. 
-		/// </summary>
-		/// <param name="is">input stream</param>
-		/// <param name="flags">input flags</param>
-		/// <returns>Total number of characters written</returns>
-		int send(std::istream& is, RCVMSG flags = RCVMSG::DEFAULT) const
+		template<class B>
+		int send(B msg, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
 		{
 			int len = 0;
-			int sndbuf = sockopt<GET_SO::SNDBUF>(s);
-			std::vector<char> snd(sndbuf);
-
-			while (is.read(snd.data(), sndbuf)) {
-				len += send(snd.data(), static_cast<int>(is.gcount()));
-				if (is.eof()) {
-					break;
-				}
+	
+			if (0 == sndbuf) {
+				sndbuf = sockopt<GET_SO::SNDBUF>(s);
+			}
+			
+			auto buf = ibuffer(msg);
+			while (auto snd = buf(sndbuf)) {
+				do {
+					int ret = ::send(s, &snd, snd.length(), static_cast<int>(flags));
+					if (SOCKET_ERROR == ret) {
+						break;
+					}
+					len += ret;
+					snd.advance(ret);
+				}  while (snd);
 			}
 
 			return len;
 		}
-		socket& operator<<(const char* msg)
+		template<class B>
+		socket& operator<<(B msg)
 		{
 			send(msg);
 
@@ -247,26 +224,8 @@ namespace winsock {
 				~send()
 				{ }
 
-				send& operator<<(std::istream& is)
-				{
-					s.send(is, flags.flags);
-
-					return *this;
-				}
-				send& operator<<(const char* msg)
-				{
-					s.send(msg, 0, flags.flags);
-
-					return *this;
-				}
-				template<size_t N>
-				send& operator<<(const char (&msg)[N])
-				{
-					s.send(msg, static_cast<int>(N), flags.flags);
-
-					return *this;
-				}
-				send& operator<<(const std::string& msg)
+				template<class B>
+				send& operator<<(B msg)
 				{
 					s.send(msg, flags.flags);
 
@@ -282,21 +241,7 @@ namespace winsock {
 		typename istream_proxy::send operator<<(const istream_proxy& flags)
 		{
 			return istream_proxy::send(*this, flags);
-		}			
-		socket& operator<<(std::istream& is)
-		{
-			//!!!find appropriate size for connection
-			int sndbuf = sockopt<GET_SO::SNDBUF>(s);
-			std::vector<char> snd(sndbuf);
-			while (is.read(snd.data(), sndbuf)) {
-				send(snd.data(), static_cast<int>(is.gcount()));
-				if (is.eof()) {
-					break;
-				}
-			}
-
-			return *this;
-		}
+		}	
 
 		int recv(char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
 		{

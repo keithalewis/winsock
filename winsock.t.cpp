@@ -137,12 +137,20 @@ int test_socket()
 		s.send("GET / HTTP/1.1\r\n\r\n");
 		s >> std::cout;
 	}
+#endif // 0
 	{
 		winsock::tcp::client::socket<> s("www.google.com", "http");
 		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1" << "\r\n\r\n";
 		s >> std::cout;
 	}
-#endif // 0
+
+	{
+		winsock::tcp::client::socket<> s("www.google.com", "http");
+		//ibuffer buf("GET / HTTP/1.1\r\n\r\n");
+		s.send("GET / HTTP/1.1\r\n\r\n");
+		s >> std::cout;
+	}
+
 	return i;
 }
 
