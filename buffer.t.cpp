@@ -29,73 +29,40 @@ int test_ibuffer_view()
 	return 0;
 }
 
+template<class B>
+int test_ibuffer(ibuffer<B>& buf, const char* s)
+{
+	ibuffer<B> b2(buf);
+	buf = b2;
+	auto br = buf.read(1);
+	assert(br);
+	assert(1 == br.length());
+	assert(*s == *&br);
+	br = buf.read();
+	assert(0 == strncmp(s + 1, &br, br.length()));
+
+	return 0;
+}
+
 int test_ibuffer()
 {
 	{
 		//ibuffer b; // fails
 	}
+	const char abc[] = "abc";
 	{
-		ibuffer b("abc");
-		ibuffer b2(b);
-		b = b2;
-		auto br = b.read();
-		assert(0 == strncmp("abc", &br, br.length()));
-		br = b.read();
+		ibuffer b(abc);
+		//test_ibuffer(b, abc);
 	}
 	{
-		ibuffer b("abc");
-		ibuffer b2(b);
-		b = b2;
-		auto br = b.read(1);
-		assert(br);
-		assert(1 == br.length());
-		assert(0 == strncmp("a", &br, br.length()));
-		br = b.read(2);
-		assert(br);
-		assert(2 == br.length());
-		assert(0 == strncmp("bc", &br, br.length()));
-		br = b.read(1);
-		assert(!br);
-		assert(0 == br.length());
-	}
-	{
-		ibuffer b(std::vector<char>(3));
-		ibuffer b2(b);
-		b = b2;
-	}
-	{
-		std::vector<char> v = { 'a', 'b', 'c' };
+		std::vector<char> v(abc, abc + 3);
 		ibuffer b(v);
-		ibuffer b2(b);
-		b = b2;
-		auto br = b.read(1);
-		assert(br);
-		assert(1 == br.length());
-		assert(0 == strncmp("a", &br, br.length()));
-		br = b.read(2);
-		assert(br);
-		assert(2 == br.length());
-		assert(0 == strncmp("bc", &br, br.length()));
-		br = b.read(1);
-		assert(!br);
-		assert(0 == br.length());
+		test_ibuffer(b, abc);
 	}
 	{
-		std::istringstream s("abc");
+		std::istringstream s(abc);
 		ibuffer b(std::ref(s));
-		//ibuffer b2(b);
-		//b = b2;
-		auto br = b.read(1);
-		assert(br);
-		assert(1 == br.length());
-		assert(0 == strncmp("a", &br, br.length()));
-		br = b.read(2);
-		assert(br);
-		assert(2 == br.length());
-		assert(0 == strncmp("bc", &br, br.length()));
-		br = b.read(1);
-		assert(!br);
-		assert(0 == br.length());
+		test_ibuffer(b, abc);
 	}
 	
 	return 0;

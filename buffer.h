@@ -102,37 +102,37 @@ public:
 		if constexpr (std::is_same_v<B, const char*>) {
 			const char* p = buf + off;
 
-			if (n > 0) {
-				if (off + n > len) {
-					n = len - off;
-					off = len;
-				}
-				else {
-					off += n;
-				}
+			// read everything
+			if (n == 0 || off + n > len) {
+				n = len - off;
+				off = len;
 			}
+			else if (n > 0) {
+				off += n;
+			}
+			//??? n < 0
 
 			return ibuffer_view(p, n);
 		}
 		else if constexpr (std::is_same_v<B, std::vector<char>>) {
 			const char* p = buf.data() + off;
 
-			if (n > 0) {
-				if (off + n > len) {
-					n = len - off;
-					off = len;
-				}
-				else {
-					off += n;
-				}
+			// read everything
+			if (n == 0 || off + n > len) {
+				n = len - off;
+				off = len;
+			}
+			else if (n > 0) {
+				off += n;
 			}
 
 			return ibuffer_view(p, n);
 		}
 		else if constexpr (std::is_base_of_v<std::istream, B::type>) {
+			//!!! seek offsets in std::streambuf* pbuf = buf.rdbuf();
 			static char rbuf[1024];
 
-			if (n > 0 && !buf.get().eof()) {
+			if (n > 0 && buf.get().good()) {
 				buf.get().read(rbuf, n);
 				n = static_cast<int>(buf.get().gcount());
 			}
