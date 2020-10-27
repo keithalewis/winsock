@@ -152,6 +152,12 @@ int test_obuffer()
 		memcpy(&wb, "de", wb.length());
 		assert(0 == strncmp(b.data(), "abcde", 5));
 	}
+	{
+		obuffer b(std::ref(std::cout));
+	}
+	{
+		//!!!obuffer b(std::cout);
+	}
 
 	return 0;
 }

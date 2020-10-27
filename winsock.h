@@ -186,7 +186,7 @@ namespace winsock {
 				do {
 					int ret = ::send(s, &snd, snd.length(), static_cast<int>(flags));
 					if (SOCKET_ERROR == ret) {
-						break;
+						return ret;
 					}
 					len += ret;
 					snd.advance(ret);
@@ -198,7 +198,9 @@ namespace winsock {
 		template<class B>
 		socket& operator<<(B msg)
 		{
-			send(msg);
+			if (SOCKET_ERROR == send(msg)) {
+				throw std::runtime_error("winsock::socket::opertor<< failed");
+			}
 
 			return *this;
 		}
@@ -216,12 +218,6 @@ namespace winsock {
 			public:
 				send(const socket<af>& s, istream_proxy flags)
 					: s(s), flags(flags)
-				{ }
-				send(const send&) = default;
-				send& operator=(const send&) = default;
-				send(send&&) = default;
-				send& operator=(send&&) = default;
-				~send()
 				{ }
 
 				template<class B>
@@ -243,78 +239,56 @@ namespace winsock {
 			return istream_proxy::send(*this, flags);
 		}	
 
-		int recv(char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
+		template<class B>
+		int recv(obuffer<B>& buf, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
-			return ::recv(s, buf, len, static_cast<int>(flags));
-		}
-		/*
-		int recv(buffer& buf, RCVMSG flags = RCVMSG::DEFAULT) const
-		{
-			int len = buf.len();
-			if (len == 0) {
-				buf.len(sockopt<GET_SO::RCVBUF>(s));
-				len = buf.len();
-			}
+			int len = 0;
 
-			int off = 0;
-			int ret = SOCKET_ERROR;
-			while (0 < (ret = recv(&buf + off, len, flags))) {
-				if (ret == len) {
-					off += len;
-					buf.len(buf.len() + len);
+			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
+			auto rcv = buf(rcvbuf);
+			// for (auto rcv = buf(); rcv; rcv = buf(rcvbuf))
+			while (rcv) {
+				int ret = ::recv(s, &rcv, rcv.length(), static_cast<int>(flags));
+
+				if (SOCKET_ERROR == ret) {
+					return ret;
 				}
-				else {
-					buf.len(buf.len() + ret);
+				if (0 == ret) {
+					// buf.resize() ???
 					break;
 				}
-			}
-			// if (ret == 0) check for pending data???
 
-			return ret;
-		}
-		*/
-		int recv(std::ostream& os, RCVMSG flags = RCVMSG::DEFAULT) const
-		{
-			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
-			std::vector<char> rcv(rcvbuf, 0);
-			int ret = 0;
-			while (0 < (ret = recv(rcv.data(), rcvbuf, flags))) {
-				os.write(rcv.data(), ret);
-				if (ret < rcvbuf) {
-					break; //??? check for pending data
+				len += ret;
+				if (ret < rcv.length()) {
+					buf.resize(len);
+
+					break;
 				}
-			}
-			// if (ret == SOCKET_ERROR) ...
 
-			return ret;
-		}
-		std::string recv(RCVMSG flags = RCVMSG::DEFAULT) const
-		{
-			std::ostringstream oss;
-
-			if (INVALID_SOCKET == recv(oss, flags)) {
-				throw std::runtime_error("recv failed");
+				rcv = buf(rcvbuf);
 			}
 
-			return oss.str();
+			return len;
 		}
 		
-		//??? no copy using stream_buf
-		socket& operator>>(std::ostream& os)
+		template<class B>
+		socket& operator>>(obuffer<B>& buf)
 		{
-			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
-			std::vector<char> rcv(rcvbuf, 0);
-			int ret = 0;
-			while (0 < (ret = recv(rcv.data(), rcvbuf))) {
-				os.write(rcv.data(), ret);
-				if (ret < rcvbuf) {
-					break; //??? check for pending data
-				}
+			int ret = recv(buf);
+			if (SOCKET_ERROR == ret) {
+				throw std::runtime_error("winsock::socket::opertor<< failed");
 			}
-			// if (ret == SOCKET_ERROR) ...
 
 			return *this;
 		}
+		socket& operator>>(std::ostream& os)
+		{
+			obuffer buf(std::ref(os));
+
+			return operator>>(buf);
+		}
+		
+
 		// ostream proxy
 		class ostream_proxy {
 			RCVMSG flags;
@@ -329,29 +303,10 @@ namespace winsock {
 				recv(const socket<af>& s, ostream_proxy flags)
 					: s(s), flags(flags)
 				{ }
-				recv(const recv&) = default;
-				recv& operator=(const recv&) = default;
-				recv(recv&&) = default;
-				recv& operator=(recv&&) = default;
-				~recv()
-				{ }
-
-				recv& operator>>(std::ostream& os)
+				template<class B>
+				recv& operator>>(B& buf)
 				{
-					s.recv(os, flags.flags);
-
-					return *this;
-				}
-				recv& operator>>(const char* msg)
-				{
-					s.recv(msg, 0, flags.flags);
-
-					return *this;
-				}
-				template<size_t N>
-				recv& operator>>(const char(&msg)[N])
-				{
-					s.recv(msg, static_cast<int>(N), flags.flags);
+					s.recv(obuffer(buf), flags.flags);
 
 					return *this;
 				}

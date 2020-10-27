@@ -72,6 +72,15 @@ namespace winsock {
 		{
 			return buf.len;
 		}
+		void advance(int n)
+		{
+			if (n > buf.len) {
+				n = buf.len;
+			}
+
+			buf.buf += n;
+			buf.len -= n;
+		}
 	};
 
 	// type of underlying buffer
@@ -87,9 +96,11 @@ namespace winsock {
 	constexpr bool is_istream = std::is_base_of_v<std::istream, T::type>;
 	template<typename T>
 	constexpr bool is_ostream = std::is_base_of_v<std::ostream, T::type>;
+	template<typename T>
+	constexpr bool is_ibuffer = (is_const_char<T> || is_string<T> || is_vector<T> || is_istream<T>);
 
 	// input buffer of chars to read
-	template<class B>
+	template<class B> requires (is_const_char<B> || is_string<B> || is_vector<B> || is_istream<B>)
 	class ibuffer {
 		B buf;
 		int len;
@@ -171,10 +182,11 @@ namespace winsock {
 			else if constexpr (is_istream<B>) {
 				//!!! seek offsets in std::streambuf* pbuf = buf.rdbuf();
 				static char rbuf[1024];
+				auto& get = buf.get();
 
-				if (n > 0 && buf.get().good()) {
-					buf.get().read(rbuf, n);
-					n = static_cast<int>(buf.get().gcount());
+				if (n > 0 && get) {
+					get.read(rbuf, n);
+					n = static_cast<int>(get.gcount());
 				}
 
 				return ibuffer_view(rbuf, n);
@@ -192,10 +204,10 @@ namespace winsock {
 		int len;
 		int off = 0;   // characters read
 	public:
-		obuffer(size_t n = 0)
+		explicit obuffer(size_t n = 0)
 			: buf(std::vector<char>(n)), len(static_cast<int>(n))
 		{ }
-		obuffer(B buf, int n)
+		obuffer(B buf, int n = 0)
 			: buf(buf), len(n)
 		{ }
 
@@ -214,9 +226,10 @@ namespace winsock {
 			if constexpr (is_char<B>) {
 				return buf;
 			}
-			else if constexpr (is_vector<B>) {
+			else if constexpr (is_vector<B> || is_string<B>) {
 				return buf.data();
 			}
+			// ostringstream return str().data()
 			else {
 				return nullptr;
 			}
@@ -224,6 +237,13 @@ namespace winsock {
 		int length() const
 		{
 			return len;
+		}
+		void resize(int n)
+		{
+			if constexpr (is_vector<B> || is_string<B>) {
+				buf.resize(n);
+				len = n;
+			}
 		}
 
 		// obuffer buf(...);
@@ -248,6 +268,16 @@ namespace winsock {
 
 				return obuffer_view(p, n);
 			}
+			else if constexpr (is_string<B>) {
+				if (off + n > len) {
+					buf.resize(static_cast<size_t>(off) + n);
+					len = static_cast<int>(buf.length());
+				}
+				char* p = buf.data() + off;
+				off += n;
+
+				return obuffer_view(p, n);
+			}
 			else if constexpr (is_vector<B>) {
 				if (off + n > len) {
 					buf.resize(static_cast<size_t>(off) + n);
@@ -260,7 +290,7 @@ namespace winsock {
 			}
 			else if constexpr (is_ostream<B>) {
 				//!!! seek offsets in std::streambuf* pbuf = buf.rdbuf();
-				return obuffer_view(buf.get().rdbuf().str().c_str(), n);
+				return obuffer_view{}; // (buf.get().rdbuf().str().c_str(), n);
 			}
 			else {
 				return obuffer_view{};
