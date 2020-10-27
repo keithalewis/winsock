@@ -129,23 +129,19 @@ public:
 
 			return ibuffer_view(p, n);
 		}
-		else if constexpr (std::is_base_of_v<std::istream, B>) {
-			// if (len == 0) set to reasonable default
-			static char rbuf[1024]; // !!! use rdbuf of stream
+		else if constexpr (std::is_base_of_v<std::istream, B::type>) {
+			static char rbuf[1024];
 
-			if (n > 0) {
-				buf.read(rbuf, 1024);
-				n = buf.gcount();
+			if (n > 0 && !buf.get().eof()) {
+				buf.get().read(rbuf, n);
+				n = static_cast<int>(buf.get().gcount());
 			}
 
 			return ibuffer_view(rbuf, n);
 		}
-		
-
 		else {
 			return ibuffer_view{};
 		}
-
 	}
 };
 

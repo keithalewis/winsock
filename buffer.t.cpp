@@ -80,14 +80,24 @@ int test_ibuffer()
 		assert(!br);
 		assert(0 == br.length());
 	}
-	/*
 	{
 		std::istringstream s("abc");
-		std::istringstream& rs(s);
-		ibuffer b(rs);
+		ibuffer b(std::ref(s));
+		//ibuffer b2(b);
+		//b = b2;
+		auto br = b.read(1);
+		assert(br);
+		assert(1 == br.length());
+		assert(0 == strncmp("a", &br, br.length()));
+		br = b.read(2);
+		assert(br);
+		assert(2 == br.length());
+		assert(0 == strncmp("bc", &br, br.length()));
+		br = b.read(1);
+		assert(!br);
+		assert(0 == br.length());
 	}
-	*/
-
+	
 	return 0;
 }
 
