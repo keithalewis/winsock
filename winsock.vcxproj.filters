@@ -21,9 +21,15 @@
     <ClInclude Include="coro.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="winsock.t.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="buffer.t.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

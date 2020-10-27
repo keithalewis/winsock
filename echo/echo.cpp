@@ -9,7 +9,10 @@ void tcp_server_echo(const char* port = "8888")
 
 	tcp::server::socket<af> s("localhost", "8888", AI::PASSIVE);
 	s.listen();
-	s.accept();
+	socket<af> t = s.accept();
+	while (buf = t.recv()) {
+		t.send(buf);
+	}
 }
 
 int main()

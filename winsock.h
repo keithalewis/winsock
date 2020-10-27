@@ -300,7 +300,7 @@ namespace winsock {
 		}
 	};
 	static inline const WSA wsa;
-	
+
 	/// Value object from dotted IPv4 or IPv6 address string
 	template<AF af = AF::INET>
 	class sockaddr {
@@ -610,6 +610,12 @@ namespace winsock {
 		{
 			return send(msg.c_str(), msg.length(), flags);
 		}
+		/*
+		int send(const buffer& msg, SNDMSG flags = SNDMSG::DEFAULT) const
+		{
+			return send(&msg, msg.len(), flags);
+		}
+		*/
 		/// <summary>
 		/// Send input stream to socket. 
 		/// </summary>
@@ -714,6 +720,32 @@ namespace winsock {
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
 		}
+		/*
+		int recv(buffer& buf, RCVMSG flags = RCVMSG::DEFAULT) const
+		{
+			int len = buf.len();
+			if (len == 0) {
+				buf.len(sockopt<GET_SO::RCVBUF>(s));
+				len = buf.len();
+			}
+
+			int off = 0;
+			int ret = SOCKET_ERROR;
+			while (0 < (ret = recv(&buf + off, len, flags))) {
+				if (ret == len) {
+					off += len;
+					buf.len(buf.len() + len);
+				}
+				else {
+					buf.len(buf.len() + ret);
+					break;
+				}
+			}
+			// if (ret == 0) check for pending data???
+
+			return ret;
+		}
+		*/
 		int recv(std::ostream& os, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
