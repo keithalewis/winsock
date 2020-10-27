@@ -151,9 +151,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="buffer.h" />
+    <ClInclude Include="winsock_buffer.h" />
     <ClInclude Include="coro.h" />
     <ClInclude Include="winsock.h" />
+    <ClInclude Include="winsock_enum.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="buffer.t.cpp" />

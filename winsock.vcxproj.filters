@@ -21,7 +21,10 @@
     <ClInclude Include="coro.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="buffer.h">
+    <ClInclude Include="winsock_enum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="winsock_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

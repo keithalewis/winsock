@@ -2,7 +2,9 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
-#include "buffer.h"
+#include "winsock_buffer.h"
+
+using namespace winsock;
 
 int test_ibuffer_view()
 {
