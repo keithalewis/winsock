@@ -65,6 +65,7 @@ int test_socket()
 		assert(0 == sockopt<SET_SO::SNDBUF>(s, 10));
 		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
 	}
+#if 0
 	// https://tools.ietf.org/html/rfc862
 	// sudo mknod -m 777 fifo p
 	// cat fifo | netcat -l -k localhost 8000 > fifo
@@ -141,7 +142,7 @@ int test_socket()
 		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1" << "\r\n\r\n";
 		s >> std::cout;
 	}
-
+#endif // 0
 	return i;
 }
 
