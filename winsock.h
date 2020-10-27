@@ -172,6 +172,9 @@ namespace winsock {
 			return connect(addrinfo(host, port, hints()));
 		}
 
+		//
+		// send
+		//
 		template<class B>
 		int send(B msg, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
 		{
@@ -239,22 +242,22 @@ namespace winsock {
 			return istream_proxy::send(*this, flags);
 		}	
 
+		//
+		// recv
+		//
 		template<class B>
 		int recv(obuffer<B>& buf, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
 			int len = 0;
 
 			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
-			auto rcv = buf(rcvbuf);
-			// for (auto rcv = buf(); rcv; rcv = buf(rcvbuf))
-			while (rcv) {
+			for (auto rcv = buf(rcvbuf); rcv; rcv = buf(rcvbuf)) {
 				int ret = ::recv(s, &rcv, rcv.length(), static_cast<int>(flags));
 
 				if (SOCKET_ERROR == ret) {
 					return ret;
 				}
 				if (0 == ret) {
-					// buf.resize() ???
 					break;
 				}
 
@@ -264,8 +267,6 @@ namespace winsock {
 
 					break;
 				}
-
-				rcv = buf(rcvbuf);
 			}
 
 			return len;
