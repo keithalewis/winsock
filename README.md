@@ -118,15 +118,18 @@ The constructor has two required arguments for the socket type (`SOCK`) and prot
 The class also implements `operator ::SOCKET()` so a `socket` can be used in any
 function having a Windows `SOCKET` argument.
 
-The `send` and `recv` functions the `buffer` class to arrange the data to
-be sent or receive.
-The member functions `operator<<` and `operator>>` can be used to send or
-receive data.
-The `socket<>::flags` static member function can be used to pass flags that manipulate 
-these function.
+The `send(const ibuffer&, SNDMSG)` and `recv(obuffer&, RCVMSG)` member functions use the buffer classes 
+to make character data available and set flags for the 
+[`send`](https://docs.microsoft.com/en-us/windows/win32/api/Winsock2/nf-winsock2-send) and 
+[`recv`](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-recv) socket API function.
 
-For example, if `s` is a `socket` then `s << flags(SNDMSG::OOB) << "Hello";` calls
-`send(s, "Hello", 5, MSG_OOB)`. The flags stay in effect only for the duration of
+The member functions `operator<<(std::istream&)` and `operator>>(std::ostream&)` can also be used to send or
+receive data.
+The `socket<>::flags` static member function can be used to pass flags that
+will be forwarded to these functions.
+
+For example, if `s` is a `socket<>` then `s << flags(SNDMSG::OOB) << "Hello";` calls
+`::send(s, "Hello", 5, MSG_OOB)`. The flags stay in effect only for the duration of
 the statement, which is a feature.
 
 ## `winsock::tcp`
