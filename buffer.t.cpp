@@ -6,40 +6,88 @@
 
 using namespace winsock;
 
-void test_buffer_view_helper(buffer_view& bv, const char* buf)
+void test_ibuffer_view(const char* buf, const ibuffer_view& bv)
 {
 	assert(0 == strncmp(buf, bv.buf, bv.len));
-	int len = bv.len;
-	bv.advance(1);
-	assert(len == bv.len + 1);
-	assert(buf[1] == *bv.buf);
-	assert(bv);
-	assert(0 == strncmp(buf + 1, bv.buf, bv.len));
+}
+void test_obuffer_view(const char* buf, obuffer_view& bv)
+{
+	memcpy_s(bv.buf, bv.len, buf, bv.len);
+	assert(0 == strncmp(buf, bv.buf, bv.len));
 }
 
 int test_buffer_view()
 {
 	{
 		char buf[3] = { 'a', 'b', 'c' };
-		buffer_view bv(buf, 3);
-		buffer_view bv2{ bv };
-		assert(bv2.buf == bv.buf);
-		assert(bv2.len == bv.len);
-		bv = bv2;
-		assert(bv2.buf == bv.buf);
-		assert(bv2.len == bv.len);
+		test_ibuffer_view("abc", ibuffer_view{ buf, 3 });
+
+		obuffer_view obv{ buf, 3 };
+		test_obuffer_view("def", obv);
+		assert(0 == strncmp(buf, obv.buf, obv.len));
 	}
 	{
 		char buf[3] = { 'a', 'b', 'c' };
-		buffer_view bv(buf, 3);
-		test_buffer_view_helper(bv, buf);
+		test_ibuffer_view("abc", ibuffer_view(buf, 3));
+
+		obuffer_view obv(buf, 3);
+		test_obuffer_view("def", obv);
+		assert(0 == strncmp(buf, obv.buf, obv.len));
+	}
+	{
+		std::string abc("abc");
+		ibuffer_view ibv(abc);
+		test_ibuffer_view("abc", ibv);
+
+		obuffer_view obv(abc);
+		test_obuffer_view("def", obv);
+		assert(0 == strncmp("def", obv.buf, obv.len));
+	}
+	{
+		std::vector<char> abc{ 'a', 'b', 'c' };
+		ibuffer_view ibv(abc);
+		test_ibuffer_view("abc", ibv);
+
+		obuffer_view obv(abc);
+		test_obuffer_view("def", obv);
+		assert(0 == strncmp("def", obv.buf, obv.len));
 	}
 
 	return 0;
 }
 int test_buffer_view_ = test_buffer_view();
-
 #if 0 
+template<class B>
+int test_buffer_helper(B& b, const char* buf)
+{
+	{
+		B b2(b);
+		b = b2;
+		auto bv = b();
+		test_buffer_view_helper(bv, buf);
+	}
+
+	return 0;
+}
+int test_buffer()
+{
+	{
+		char buf[3] = { 'a', 'b', 'c' };
+		buffer b(buf, 3);
+		test_buffer_helper(b, "abc");
+	}
+	{
+		std::string buf("abc");
+		buffer b(buf);
+		test_buffer_helper(b, "abc");
+	}
+
+	return 0;
+}
+int test_buffer_ = test_buffer();
+
+
+
 
 int test_ibuffer_view()
 {

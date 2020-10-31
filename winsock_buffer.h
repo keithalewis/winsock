@@ -11,54 +11,52 @@
 // not really winsock specific!!!
 namespace winsock {
 
-	// view on buffer of chars
+	// view on buffer of Ts
+	template<typename T>
 	struct buffer_view {
-		char* buf;
+		T* buf;
 		int len;
 
-		buffer_view(char* buf = nullptr, size_t len = 0)
+		buffer_view(T* buf, size_t len)
 			: buf(buf), len(static_cast<int>(len))
 		{ }
+		explicit buffer_view(std::string& buf)
+			: buffer_view(buf.data(), buf.length())
+		{ }
+		explicit buffer_view(std::vector<char>& buf)
+			: buffer_view(buf.data(), buf.size())
+		{ }
 
+		// buffer<B> b; while (buf = b(n)) { send(buf.buf, buf.len); }
 		operator bool() const
 		{
 			return len != 0;
 		}
-
-		// move start of view forward n chars
-		void advance(size_t n)
-		{
-			if (n > len) {
-				buf = nullptr;
-				len = 0;
-			}
-
-			buf += static_cast<int>(n);
-			len -= static_cast<int>(n);
-		}
 	};
+	using ibuffer_view = buffer_view<const char>;
+	using obuffer_view = buffer_view<char>;
 
 	// type of underlying buffer
-	template<typename T>
-	constexpr bool is_char = std::is_same_v<T, char*>;
-	template<typename T>
-	constexpr bool is_string = std::is_same_v<T, std::string>;
-	template<typename T>
-	constexpr bool is_vector = std::is_same_v<T, std::vector<char>>;
-	template<typename T>
-	constexpr bool is_file = std::is_same_v<T, FILE*>;
-	template<typename T>
-	constexpr bool is_iostream = std::is_base_of_v<std::iostream, T::type>;
-	template<typename T>
-	constexpr bool is_istream = std::is_base_of_v<std::istream, T::type>;
-	template<typename T>
-	constexpr bool is_ostream = std::is_base_of_v<std::ostream, T::type>;
+	template<typename B>
+	constexpr bool is_char = std::is_same_v<B, char*>;
+	template<typename B>
+	constexpr bool is_string = std::is_same_v<B, std::string>;
+	template<typename B>
+	constexpr bool is_vector = std::is_same_v<B, std::vector<char>>;
+	template<typename B>
+	constexpr bool is_file = std::is_same_v<B, FILE*>;
+	template<typename B>
+	constexpr bool is_iostream = std::is_base_of_v<std::iostream, B::type>;
+	template<typename B>
+	constexpr bool is_istream = std::is_base_of_v<std::istream, B::type>;
+	template<typename B>
+	constexpr bool is_ostream = std::is_base_of_v<std::ostream, B::type>;
 
 	// buffers of chars
 	template<class B> requires (is_char<B> || is_string<B> || is_vector<B> || is_iostream<B>)
 	class buffer {
 		B buf;
-		int len; // const ???
+		int len;
 		int off; // characters read
 	public:
 		buffer(B buf, int n = 0)
@@ -69,10 +67,10 @@ namespace winsock {
 					len = static_cast<int>(strlen(buf));
 				}
 			}
-			if constexpr (is_string<B>) {
+			else if constexpr (is_string<B>) {
 				len = static_cast<int>(buf.length());
 			}
-			if constexpr (is_vector<B>) {
+			else if constexpr (is_vector<B>) {
 				len = static_cast<int>(buf.size());
 			}
 			else {
@@ -98,21 +96,21 @@ namespace winsock {
 
 		// s.send(buf(n))
 		// return view on at most n characters
-		buffer_view operator()(size_t n = 0)
+		template<class T>
+		buffer_view<T> operator()(size_t n = 0)
 		{
 			if constexpr (is_char<B> || is_string<B> ||  is_vector<B>) {
 				char* p = &buf[0] + off;
 
 				// read everything
 				if (n == 0 || off + n > len) {
-					//n = len - off;
-					off = len;
+					n = len - off;
 				}
 				else {
-					off += n;
+					off += static_cast<int>(n);
 				}
 
-				return buffer_view(p, n);
+				return buffer_view<T>(p, n);
 			}
 			/*
 			if constexpr (is_istream<B>) {
