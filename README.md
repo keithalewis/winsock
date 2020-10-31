@@ -7,7 +7,7 @@ A `pipe` is a file descriptor for reading and writing between two executables ru
 Sockets are pipes where the executables can be running on different machines connected by a network.
 Leslie Laport defined a distributed system as "one in which the failure of a computer you didn't even 
 know existed can render your own computer unusable." This library makes it easy
-to get to the difficult to reason about and solve problems involved in networked computing.
+to get to the subtle and difficult to reason about problems involved in networked computing.
 It provides training wheels for the pesky minutia involved with creating sockets
 and setting them up for reading and writing. The socket API is quite ancient and
 by necessity deals with the low level machinery involved in shipping bits
@@ -23,9 +23,10 @@ Sockets and their associated structures are parameterized by _address family_
 and enumerations are defined using `enum class`
 so the C++ type system enforces compatible calls to the socket API. 
 A buffer class is provided to isolate the mechanics of
-providing characters to the send and recv socket calls.
+providing characters to the send and recv socket calls used to write
+and read data using a socket.
 
-A client program to send and receive a message using TCP to server 
+A client program to send and receive a message using the TCP protocol to server 
 `host` listening on `port` looks like this:
 ```C++
 tcp::client::socket s(host, port);  // connect to host on port
@@ -33,7 +34,9 @@ buffer<std::string> msg("message"); // string backed buffer
 s.send(msg);
 s.recv(msg);
 ```
-The string buffer now contains the response from the server to the message.
+The string buffer now contains the response from the server to the message
+unless something went haywire. It is possible the server was not
+listening for messages or it recieved the message and did not send a response.
 
 A server program to echo messages back to the client looks like this:
 ```
@@ -51,13 +54,13 @@ while (true) {
 ```
 Server sockets call [`bind`](https://docs.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-bind).
 The `tcp::server::socket<>` constructor creates a TCP stream socket and calls
-`bind` with the secified flag.
+`bind` with the specified flag.
 A C++ `std::string` can have embedded `0` characters but `std::vector<char>` does not give those special treatment.
 The call to [`listen`](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen)
 uses the member function `operator ::SOCKET()` to return
 the underlying `::SOCKET`. This enables a `socket<>` to be used in any socket API function. 
 The call to [`accept`](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-accept)
-creates a new socket when a client tries to connect on the bound port. That needs to be closed after using it.
+creates a new socket when a client connects on the bound port. That needs to be closed after using it.
 The C++ class for `socket<>` does that for you when it goes out of scope.
 
 ## Buffer
@@ -92,21 +95,18 @@ standard socket API functions access to the low level address bits they need.
 ## `addrinfo<AF>`
 
 The function [`getaddrinfo(3)`](https://www.man7.org/linux/man-pages/man3/getaddrinfo.3.html)
-is used to get information about addresses if you don't know the dotted IP address.
+is used to get information about addresses if you don't know the IP address.
 
-This is used to look up socket addresses given a host and port string.
-The host string will be sent over the network in order to get the IP address needed by `sockaddr`.
+It returns a list of potential socket addresses given a host, port, and some hints.
+The host string is sent over the network to get a list of IP address.
 The port string can be the digits of the port or a 'well-known' port name such as `"https"` or `"telnet"`,
 where well-known means your local machine is set up to convert that into the actual unsigned short
-port number.
-
-The `getaddrinfo` function returns a list of addresses that you may or may not be able to use.
-You need to supply additional information (hints) and use either `bind` or `connect`
-to find the address the remote machine allows for transmitting data.
+port number. The hints indicate the address family, socket type, protocol, and optional
+flags indicating how the socket is intended to be used.
 
 The socket member functions `socket<>::bind` and `socket<>::connect` supply the
 appropriate hints and traverse proffered addresses until finding one that the
-remote machine allows. The `addrinfo_iter` class is used to walk through
+remote machine deems acceptible. The `addrinfo_iter` class is used to walk through
 the potential addresses returned by `getaddrinfo`.
 
 ## `winsock::socket<AF>`
@@ -118,15 +118,16 @@ The constructor has two required arguments for the socket type (`SOCK`) and prot
 The class also implements `operator ::SOCKET()` so a `socket` can be used in any
 function having a Windows `SOCKET` argument.
 
-The `send` and `recv` functions can use `std::istream` and `std::ostream` for output
-and input to and from sockets. There are corresponding member functions
-`operator<<` and `operator>>` and a `flags` member function that return a correponding
-stream proxy class in order to do local IO manipulation.
+The `send` and `recv` functions the `buffer` class to arrange the data to
+be sent or receive.
+The member functions `operator<<` and `operator>>` can be used to send or
+receive data.
+The `socket<>::flags` static member function can be used to pass flags that manipulate 
+these function.
 
 For example, if `s` is a `socket` then `s << flags(SNDMSG::OOB) << "Hello";` calls
 `send(s, "Hello", 5, MSG_OOB)`. The flags stay in effect only for the duration of
 the statement, which is a feature.
-
 
 ## `winsock::tcp`
 
