@@ -5,7 +5,7 @@ Header only affordances for Windows sockets.
 File descriptors are used for reading and writing files on a disk. 
 A `pipe` is a file descriptor for reading and writing between two executables running on the same machine.
 Sockets are pipes where the executables can be running on different machines connected by a network.
-Leslie Laport defined a distributed system as "one in which the failure of a computer you didn't even 
+Leslie Lamport defined a distributed system as "one in which the failure of a computer you didn't even 
 know existed can render your own computer unusable." This library makes it easy
 to get to the subtle and difficult to reason about problems involved in networked computing.
 It provides training wheels for the pesky minutia involved with creating sockets
@@ -38,9 +38,9 @@ The string buffer now contains the response from the server to the message
 unless something went haywire. It is possible the server was not
 listening for messages or it recieved the message and did not send a response.
 
-A server program to echo messages back to the client looks like this:
-```
- // bind to port 2345 on this machine with AI_PASSIVE flag
+A server program to echo messages sent using TCP back to the client looks like this:
+```C++
+// bind to port 2345 on this machine with AI_PASSIVE flag
 tcp::server::socket<> s("localhost", "2345", AI::PASSIVE);
 buffer<std::vector<char>> buf; // use vector char buffer 
 
@@ -67,8 +67,8 @@ The C++ class for `socket<>` does that for you when it goes out of scope.
 
 The `buffer` class provides backing for the characters sent and received over sockets.
 The member function `operator()(int n)` returns a `buffer_view` class having 
-member functions `operator&()` and `length()` to provide access to the characters needed
-by sockets send and receive characters.
+member functions `operator&()` and `length()` to provide access to at most `n` characters
+to be transmitted by sockets. If `n` is omitted then all available buffer capacity is used.
 Buffers can be backed by fixed length character arrays, strings, vectors of characters,
 files, or IO streams.
 There are specializations `ibuffer` and `obuffer` that indicate the buffer will only
@@ -86,23 +86,23 @@ It has a constructor that takes an _IPv4 or IPv6 internet network address_ strin
 [inet_pton`](https://docs.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-inet_pton) 
 to parse the string into requisite bits and convert the port into appropriate byte order
 to send over a network.
-If you know your party (IP address) and extension (port) there is no need to
-involve network calls to specify an address.
-
 The `operator&()` and `len()` member functions supply 
 standard socket API functions access to the low level address bits they need.
+
+If you know your party (IP address) and extension (port) there is no need to
+involve network calls to specify an address.
 
 ## `addrinfo<AF>`
 
 The function [`getaddrinfo`](https://docs.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-getaddrinfo)
 is used to get information about addresses if you don't know the IP address.
 
-It returns a list of potential socket addresses given a host, port, and some hints.
+It returns a list of potential socket addresses given a host, port, and hints.
 The host string name is sent over the network to get a list of IP address.
 The port string can be the digits of the port or a 'well-known' port name such as `"https"` or `"telnet"`,
 where well-known means your local machine is set up to convert that into the actual unsigned short
 port number. The hints indicate the address family, socket type, protocol, and optional
-flags indicating how the socket is intended to be used.
+flags specifying how the socket is intended to be used.
 
 The socket member functions `socket<>::bind` and `socket<>::connect` supply the
 appropriate hints and traverse proffered addresses until finding one that the
@@ -125,11 +125,10 @@ to make character data available and set flags for the
 
 The member functions `operator<<(std::istream&)` and `operator>>(std::ostream&)` can also be used to send or
 receive data.
-The `socket<>::flags` static member function can be used to pass flags that
-will be forwarded to these functions.
+The `socket<>::flags` static member function can be used to pass flags to these functions.
 
 For example, if `s` is a `socket<>` then `s << flags(SNDMSG::OOB) << "Hello";` calls
-`::send(s, "Hello", 5, MSG_OOB)`. The flags stay in effect only for the duration of
+`::send(s, "Hello", 5, MSG_OOB)`. Unlike `std::iomanip` functions, the flags stay in effect only for the duration of
 the statement, which is a feature.
 
 ## `winsock::tcp`
