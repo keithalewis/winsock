@@ -113,9 +113,11 @@ the potential addresses returned by `getaddrinfo`.
 
 The `socket` class provides type safe member functions for basic socket functions:
 `bind`, `accept`, `listen`, `connect`, `send`, `recv`, `sendto`, and `recvfrom`.
-The `winsock::socket` class requires an address family (`AF`) template parameter.
+The `winsock::socket<AF>` class has an address family (`AF`) template parameter
+that defaults to `AF::INET` for sockets using IPv4. The address family `AF::INET6`
+creates a socket that uses IPv6. Other address families can be used, but they are rare.
 The constructor has two required arguments for the socket type (`SOCK`) and protocol (`IPPROTO`).
-The class also implements `operator ::SOCKET()` so a `socket` can be used in any
+The class implements `operator ::SOCKET()` so a `socket` can be used in any
 function having a Windows `SOCKET` argument.
 
 The `send(const ibuffer&, SNDMSG)` and `recv(obuffer&, RCVMSG)` member functions use the buffer classes 
