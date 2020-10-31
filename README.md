@@ -2,10 +2,61 @@
 
 A header only affordances for Windows sockets.
 
+File descriptors are used for reading and writing files on a disk. 
+A `pipe` is a file descriptor for reading and writing between two executables running on the same machine.
+Sockets are pipes where the executables can be running on different machines connected by a network.
+Leslie Laport defined a distributed system as "one in which the failure of a computer you didn't even 
+know existed can render your own computer unusable." This library makes it easy
+to get to the difficult to reason about and solve problems involved in networked computing.
+It provides training wheels for the pesky minutia involved with creating sockets
+and setting them up for reading and writing. The socket API is quite ancient and
+by necessity deals with the low level machinery involved with shipping bits
+between any two computers connected to a network.
+
+The design philosophy is to allow use of all standard socket related functions
+and only provide simple wrappers for common patterns using modern type safe
+and RAII best practices. This library will help you avoid making dumb mistakes. 
+You can make smart mistakes in the rest of your code later.
+
 Sockets and associated structures are parameterized by _address family_
-so the C++ type system ensures compatibility. Enumerations are
-defined in `enum class`es to ensure argument correctness and provide
-intellisence assistence.
+so the C++ type system enforces compatible calls to the socket API. 
+Enumerations are defined in `enum class`es to ensure argument correctness and provide
+intellisence assistence. A buffer class is provided to isolate the mechanics of
+providing characters to the send and recv socket calls.
+
+A client program to send and receive a message using TCP to server 
+`host` listening on `port` looks like this:
+```C++
+tcp::client::socket s(host, port);  // connect to host on port
+buffer<std::string> msg("message"); // string backed buffer
+s.send(msg);
+s.recv(msg);
+```
+The string buffer now contains the response from the server to the message.
+
+A server program to echo messages back to the client looks like this:
+```
+ // bind to port 2345 on this machine with AI_PASSIVE flag
+tcp::server::socket<> s("localhost", "2345", AI::PASSIVE);
+buffer<std::vector<char>> buf; // use vector char buffer 
+
+::listen(s, SOMAXCONN); // call listen(2) with system suggested backlog
+
+while (true) {
+	socket<> c = s.accept(); // socket to any client that connected
+	c.send(buf); // read what client sent
+	c.recv(buf); // write it back to them
+} // socket<> destructor calls ::closesocket(c)
+```
+Server sockets need to call `bind(2)` with appropriate flags. 
+C++ `std::string` can have embedded `0` characters, but `std::vector` does not give those special treatment.
+The call to `accept(2)` creates a new socket that needs to be closed after using it.
+The C++ class for `socket<>` does that for you when it goes out of scope.
+
+## Buffer
+
+The `buffer` class provides backing for the characters sent over sockets.
+It is completely independent of sockets but probably only useful when using those.
 
 ## `winsock::socket<AF>`
 

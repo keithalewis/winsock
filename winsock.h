@@ -42,15 +42,10 @@ namespace winsock {
 	template<AF af = AF::INET>
 	class socket {
 		::SOCKET s;
-		/*
-		// closesocket will be called on s_
-		static socket& assign(::SOCKET s_)
-		{
-			WSAPROTOCOL_INFO wsapi = sockopt<GET_SO::PROTOCOL_INFO>(s_);
-
-			return *this;
-		}
-		*/
+		// Take ownership of a raw socket.
+		socket(::SOCKET s)
+			: s(s)
+		{ }
 	public:
 		socket(SOCK type, IPPROTO proto)
 			: s(INVALID_SOCKET)
@@ -115,6 +110,7 @@ namespace winsock {
 		{
 			return bind(&sa, sa.len());
 		}
+		// Find appropriate sockadd.
 		int bind(const addrinfo<af>& ai) const
 		{
 			int result = SOCKET_ERROR;
@@ -134,13 +130,19 @@ namespace winsock {
 			return ::listen(s, backlog);
 		}
 
+		// Return socket on connection queue and fill in who connected.
 		::SOCKET accept(::sockaddr* addr, int* len) const
 		{
 			return ::accept(s, addr, len);
 		}
-		socket<af> accept(sockaddr<af>& sa) const
+		socket accept(sockaddr<af>& sa) const
 		{
-			return assign(::accept(s, &sa, &sa.len()));
+			return socket(::accept(s, &sa, &sa.len()));
+		}
+		// Ignore who connected.
+		socket accept() const
+		{
+			return socket(::accept(s, 0, 0));
 		}
 
 		//
