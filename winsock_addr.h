@@ -158,7 +158,7 @@ namespace winsock {
 		{
 			return addrinfo_iter();
 		}
-		//!!! Add functions to get info about packet size for address.
+		//!!! Add functions to get info about recommended packet size for address.
 	};
 
 
