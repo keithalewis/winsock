@@ -6,6 +6,41 @@
 
 using namespace winsock;
 
+void test_buffer_view_helper(buffer_view& bv, const char* buf)
+{
+	assert(0 == strncmp(buf, bv.buf, bv.len));
+	int len = bv.len;
+	bv.advance(1);
+	assert(len == bv.len + 1);
+	assert(buf[1] == *bv.buf);
+	assert(bv);
+	assert(0 == strncmp(buf + 1, bv.buf, bv.len));
+}
+
+int test_buffer_view()
+{
+	{
+		char buf[3] = { 'a', 'b', 'c' };
+		buffer_view bv(buf, 3);
+		buffer_view bv2{ bv };
+		assert(bv2.buf == bv.buf);
+		assert(bv2.len == bv.len);
+		bv = bv2;
+		assert(bv2.buf == bv.buf);
+		assert(bv2.len == bv.len);
+	}
+	{
+		char buf[3] = { 'a', 'b', 'c' };
+		buffer_view bv(buf, 3);
+		test_buffer_view_helper(bv, buf);
+	}
+
+	return 0;
+}
+int test_buffer_view_ = test_buffer_view();
+
+#if 0 
+
 int test_ibuffer_view()
 {
 	{
@@ -161,8 +196,11 @@ int test_obuffer()
 
 	return 0;
 }
+#endif 0
 
+/*
 int test_ibuffer_view_ = test_ibuffer_view();
 int test_obuffer_view_ = test_obuffer_view();
 int test_ibuffer_ = test_ibuffer();
 int test_obuffer_ = test_obuffer();
+*/

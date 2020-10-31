@@ -1,5 +1,6 @@
 // buffer.h - buffer using char array, vector, iostream
 #pragma once
+#include <cstdio>
 #include <cstring>
 //#include <concepts>
 #include <string>
@@ -10,14 +11,13 @@
 // not really winsock specific!!!
 namespace winsock {
 
-	// buffer view
-	template<class T>
-	class buffer_view {
-		T* buf;
+	// view on buffer of chars
+	struct buffer_view {
+		char* buf;
 		int len;
-	public:
-		buffer_view(const char* buf = nullptr, int len = 0)
-			: buf{ buf, len }
+
+		buffer_view(char* buf = nullptr, size_t len = 0)
+			: buf(buf), len(static_cast<int>(len))
 		{ }
 
 		operator bool() const
@@ -25,37 +25,21 @@ namespace winsock {
 			return len != 0;
 		}
 
-		char* operator&()
-		{
-			return buf;
-		}
-		const char* operator&() const
-		{
-			return buf;
-		}
-		int& length()
-		{
-			return len;
-		}
-		int length() const
-		{
-			return len;
-		}
 		// move start of view forward n chars
-		void advance(int n)
+		void advance(size_t n)
 		{
-			// ensure n >= 0 ???
 			if (n > len) {
 				buf = nullptr;
 				len = 0;
 			}
 
-			buf += n;
-			len -= n;
+			buf += static_cast<int>(n);
+			len -= static_cast<int>(n);
 		}
 	};
 
 	// type of underlying buffer
+	template<typename T>
 	constexpr bool is_char = std::is_same_v<T, char*>;
 	template<typename T>
 	constexpr bool is_string = std::is_same_v<T, std::string>;
@@ -69,8 +53,6 @@ namespace winsock {
 	constexpr bool is_istream = std::is_base_of_v<std::istream, T::type>;
 	template<typename T>
 	constexpr bool is_ostream = std::is_base_of_v<std::ostream, T::type>;
-	template<typename T>
-	constexpr bool is_file = std::is_same_v<T, FILE*>;
 
 	// buffers of chars
 	template<class B> requires (is_char<B> || is_string<B> || is_vector<B> || is_iostream<B>)
@@ -94,7 +76,7 @@ namespace winsock {
 				len = static_cast<int>(buf.size());
 			}
 			else {
-				len = -1; // B is iostream
+				len = -1; // B is file or iostream
 			}
 		}
 
@@ -104,58 +86,36 @@ namespace winsock {
 			if constexpr (is_char<B> || is_string<B> || is_vector<B>) {
 				return off != len;
 			}
+			if constexpr(is_file<B>) {
+				return !::feof(buf);
+			}
+			if constexpr (is_iostream<B>) {
+				return !buf.eof();
+			}
 
 			return false;
 		}
 
 		// s.send(buf(n))
 		// return view on at most n characters
-		const buffer_view operator()(int n = 0)
+		buffer_view operator()(size_t n = 0)
 		{
-			if constexpr (is_char<B>) {
-				const char* p = buf + off;
+			if constexpr (is_char<B> || is_string<B> ||  is_vector<B>) {
+				char* p = &buf[0] + off;
 
 				// read everything
 				if (n == 0 || off + n > len) {
-					n = len - off;
+					//n = len - off;
 					off = len;
 				}
-				else if (n > 0) {
+				else {
 					off += n;
 				}
-				//??? n < 0
 
 				return buffer_view(p, n);
 			}
-			else if constexpr (is_string<B>) {
-				const char* p = buf.data() + off;
-
-				// read everything
-				if (n == 0 || off + n > len) {
-					n = len - off;
-					off = len;
-				}
-				else if (n > 0) {
-					off += n;
-				}
-
-				return ibuffer_view(p, n);
-			}
-			else if constexpr (is_vector<B>) {
-				const char* p = buf.data() + off;
-
-				// read everything
-				if (n == 0 || off + n > len) {
-					n = len - off;
-					off = len;
-				}
-				else if (n > 0) {
-					off += n;
-				}
-
-				return ibuffer_view(p, n);
-			}
-			else if constexpr (is_istream<B>) {
+			/*
+			if constexpr (is_istream<B>) {
 				//!!! seek offsets in std::streambuf* pbuf = buf.rdbuf();
 				static char rbuf[1024];
 				auto& get = buf.get();
@@ -167,12 +127,19 @@ namespace winsock {
 
 				return ibuffer_view(rbuf, n);
 			}
+			*/
 			else {
-				return ibuffer_view{};
+				return buffer_view{};
 			}
 		}
 	};
 
+	// !!! for now
+	template<class B>
+	using ibuffer = buffer<B>;
+	template<class B>
+	using obuffer = buffer<B>;
+	/*
 	// output buffer of chars to write
 	template<class B = std::vector<char>>
 	class obuffer {
@@ -227,7 +194,7 @@ namespace winsock {
 		// s.recv(buf(n));
 		// write at most 2*n chars to buf
 		// return view on at most n characters
-		obuffer_view operator()(int n = 0)
+		buffer_view<char> operator()(int n = 0)
 		{
 			if constexpr (is_char<B>) {
 				char* p = buf + off;
@@ -273,5 +240,6 @@ namespace winsock {
 			}
 		}
 	};
+	*/
 
 }

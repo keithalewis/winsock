@@ -23,6 +23,8 @@ const sr data[] = {
 	}
 };
 
+#if 0
+
 int test_sockaddr()
 {
 	winsock::sockaddr<> sa(INADDR::ANY, 12345);
@@ -183,14 +185,16 @@ int test_udp_socket()
 
 	return 0;
 }
-
+#endif
 int main()
 {
+	/*
 	test_sockaddr();
 	test_addrinfo();
 	test_hints();
 	test_socket();
 	test_udp_socket();
+	*/
 
 	return 0;
 }
