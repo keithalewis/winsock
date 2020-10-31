@@ -7,7 +7,7 @@ A `pipe` is a file descriptor for reading and writing between two executables ru
 Sockets are pipes where the executables can be running on different machines connected by a network.
 Leslie Lamport defined a distributed system as "one in which the failure of a computer you didn't even 
 know existed can render your own computer unusable." This library makes it easy
-to get to the subtle and difficult to reason about problems involved in networked computing.
+to get to the subtle and difficult to reason about problems involved in distributed computing.
 It provides training wheels for the pesky minutia involved with creating sockets
 and setting them up for reading and writing. The socket API is quite ancient and
 by necessity deals with the low level machinery involved in shipping bits
