@@ -94,11 +94,11 @@ standard socket API functions access to the low level address bits they need.
 
 ## `addrinfo<AF>`
 
-The function [`getaddrinfo(3)`](https://www.man7.org/linux/man-pages/man3/getaddrinfo.3.html)
+The function [`getaddrinfo`](https://docs.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-getaddrinfo)
 is used to get information about addresses if you don't know the IP address.
 
 It returns a list of potential socket addresses given a host, port, and some hints.
-The host string is sent over the network to get a list of IP address.
+The host string name is sent over the network to get a list of IP address.
 The port string can be the digits of the port or a 'well-known' port name such as `"https"` or `"telnet"`,
 where well-known means your local machine is set up to convert that into the actual unsigned short
 port number. The hints indicate the address family, socket type, protocol, and optional
