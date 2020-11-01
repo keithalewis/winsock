@@ -84,15 +84,17 @@ namespace winsock {
 			if constexpr (is_char<B> || is_string<B> || is_vector<B>) {
 				return off != len;
 			}
-			if constexpr(is_file<B>) {
+			else if constexpr (is_file<B>) {
 				return !::feof(buf);
 			}
-			if constexpr (is_iostream<B>) {
+			else if constexpr (is_iostream<B>) {
 				return !buf.eof();
 			}
-
-			return false;
+			else {
+				return false;
+			}
 		}
+		
 
 		// s.send(buf(n))
 		// return view on at most n characters
@@ -100,7 +102,7 @@ namespace winsock {
 		buffer_view<T> operator()(size_t n = 0)
 		{
 			if constexpr (is_char<B> || is_string<B> ||  is_vector<B>) {
-				char* p = &buf[0] + off;
+				T* p = &buf[0] + off;
 
 				// read everything
 				if (n == 0 || off + n > len) {

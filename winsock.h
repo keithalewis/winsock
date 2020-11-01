@@ -78,26 +78,6 @@ namespace winsock {
 			return sa;
 		}
 		
-		/// address family, socket type, protocol
-		::addrinfo hints() const
-		{
-			WSAPROTOCOL_INFO wsapi;
-			int len = sizeof(wsapi);
-			::addrinfo ai;
-
-			memset(&ai, 0, sizeof(ai));
-
-			int result = ::getsockopt(s, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&wsapi, &len);
-			if (0 == result) {
-				ai.ai_family = wsapi.iAddressFamily;
-				ai.ai_socktype = wsapi.iSocketType;
-				ai.ai_protocol = wsapi.iProtocol;
-				ai.ai_flags = 0; //??? wsapi.dwProviderFlags;
-			}
-
-			return ai;
-		}
-		
 		//
 		// server
 		//
@@ -169,16 +149,16 @@ namespace winsock {
 
 			return result;
 		}
-		int connect(const char* host, const char* port) const
-		{
-			return connect(addrinfo(host, port, hints()));
-		}
 
 		//
 		// send
 		//
+		int send(const char* msg, int len, SNDMSG flags = SNDMSG::DEFAULT)
+		{
+			return ::send(s, msg, len, static_cast<int>(flags));
+		}
 		template<class B>
-		int send(B msg, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
+		int send(const B& buf, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
 		{
 			int len = 0;
 	
@@ -186,16 +166,12 @@ namespace winsock {
 				sndbuf = sockopt<GET_SO::SNDBUF>(s);
 			}
 			
-			auto buf = ibuffer(msg);
-			while (auto snd = buf(sndbuf)) {
-				do {
-					int ret = ::send(s, &snd, snd.length(), static_cast<int>(flags));
-					if (SOCKET_ERROR == ret) {
-						return ret;
-					}
-					len += ret;
-					snd.advance(ret);
-				}  while (snd);
+			while (const ibuffer snd = buf(sndbuf)) {
+				int ret = ::send(s, &snd, snd.len, static_cast<int>(flags));
+				if (SOCKET_ERROR == ret) {
+					return ret;
+				}
+				len += ret;
 			}
 
 			return len;
@@ -247,14 +223,21 @@ namespace winsock {
 		//
 		// recv
 		//
+		int recv(char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
+		{
+			return ::recv(s, buf, len, static_cast<int>(flags));
+		}
 		template<class B>
-		int recv(obuffer<B>& buf, RCVMSG flags = RCVMSG::DEFAULT) const
+		int recv(B& buf, RCVMSG flags = RCVMSG::DEFAULT, int rcvbuf = 0) const
 		{
 			int len = 0;
 
-			int rcvbuf = sockopt<GET_SO::RCVBUF>(s);
-			for (auto rcv = buf(rcvbuf); rcv; rcv = buf(rcvbuf)) {
-				int ret = ::recv(s, &rcv, rcv.length(), static_cast<int>(flags));
+			if (0 == rcvbuf) {
+				rcvbuf = sockopt<GET_SO::RCVBUF>(s);
+			}
+
+			while (obuffer rcv = buf(rcvbuf)) {
+				int ret = s.recv(&rcv, rcv.len, flags);
 
 				if (SOCKET_ERROR == ret) {
 					return ret;
