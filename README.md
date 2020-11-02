@@ -2,10 +2,10 @@
 
 A header only affordances for Windows sockets.
 
-Sockets and associated structures parameterized by _address family_
+Sockets and associated structures are parameterized by their _address family_
 so the C++ type system ensures compatibility. Enumerations are
 defined in `enum class`es to ensure argument correctness and provide
-intellisence assistence.
+intellisence assistance.
 
 ## `winsock::socket<AF>`
 
