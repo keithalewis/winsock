@@ -42,18 +42,27 @@ namespace winsock {
 		}
 	};
 
-	// view on buffer of Ts in chunks of at most N (where N should be system page size)
-	template<typename T, size_t N = 0x1000>
-	struct buffer {
+	// view on buffer of Ts 
+	template<typename T>
+	struct buffer_view {
 		T* buf;
 		int len;
-		int off;
+		operator bool() const
+		{
+			return len != 0;
+		}
+	};
 
+	// buffer of T*s in chunks of at most N (where N should be system page size)
+	template<typename T, size_t N = 0x1000>
+	class buffer : public buffer_view<T> {
+		int off;
+	public:
 		buffer(T* buf, size_t len)
-			: buf(buf), len(static_cast<int>(len)), off(0)
+			: buffer_view(buf, static_cast<int>(len)), off(0)
 		{ }
 
-		operator bool() const
+		operator bool() const override
 		{
 			return off < len;
 		}
@@ -83,7 +92,7 @@ namespace winsock {
 
 		// buffer<B> b; while (buf = b(n)) { send(buf.buf, buf.len); }
 		// Return new buffer view of [off, off + n) chars and increment offset
-		buffer operator()(size_t n = 0)
+		buffer_view operator()(size_t n = 0)
 		{
 			T* p = buf + off;
 
@@ -100,7 +109,7 @@ namespace winsock {
 				off += static_cast<int>(n);
 			}
 
-			return buffer(p, n);
+			return buffer_view(p, n);
 		}
 
 	};
