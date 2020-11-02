@@ -3,14 +3,15 @@
 
 using namespace winsock;
 
-template<AF af, class B>
+template<AF af>
 void tcp_server_echo(const char* host = "localhost", const char* port = "8888")
 {
-
+	buffer buf;
 	tcp::server::socket<af> s(host, port, AI::PASSIVE);
 	s.listen();
-	winsock::socket<af> t = s.accept();
-	while (0 < t.recv(buf)) {
+	while (true) {
+		winsock::socket<af> t = s.accept();
+		t.recv(buf);
 		t.send(buf);
 	}
 }

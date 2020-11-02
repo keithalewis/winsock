@@ -111,9 +111,6 @@ namespace winsock {
 			if (!pai) {
 				throw std::runtime_error("getaddrinfo found no addresses");
 			}
-			if (pai->ai_family != static_cast<int>(af)) {
-				throw std::runtime_error("getaddrinfo incompatible address family");
-			}
 		}
 		addrinfo(const addrinfo&) = default;
 		addrinfo& operator=(const addrinfo&) = default;

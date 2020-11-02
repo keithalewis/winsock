@@ -39,7 +39,7 @@ unless something went haywire.
 It is possible the server was not
 listening or it recieved the message and did not send a response.
 It is also possible the server isn't even running so your socket will
-never connect. Well written network code takes these into account.
+never connect. Well written socket code takes these into account.
 
 A server program to echo messages sent using TCP back to the client looks like this:
 ```C++

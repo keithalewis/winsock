@@ -157,6 +157,7 @@ namespace winsock {
 		{
 			return ::send(s, msg, len, static_cast<int>(flags));
 		}
+		// Send data in chunks of sndbuf and return total characters sent.
 		template<class B>
 		int send(const B& buf, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
 		{
@@ -167,7 +168,7 @@ namespace winsock {
 			}
 			
 			while (const ibuffer snd = buf(sndbuf)) {
-				int ret = ::send(s, &snd, snd.len, static_cast<int>(flags));
+				int ret = s.send(&snd, snd.len, static_cast<int>(flags));
 				if (SOCKET_ERROR == ret) {
 					return ret;
 				}

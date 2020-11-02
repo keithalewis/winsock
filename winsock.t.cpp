@@ -1,7 +1,8 @@
 // winsock.t.cpp - test winsock
 #include <cassert>
 #include <cstdio>
-#include <future>
+
+#if 0
 #include "winsock.h"
 
 using namespace winsock;
@@ -22,8 +23,6 @@ const sr data[] = {
 		{"bar", 3}
 	}
 };
-
-#if 0
 
 int test_sockaddr()
 {
@@ -67,7 +66,7 @@ int test_socket()
 		assert(0 == sockopt<SET_SO::SNDBUF>(s, 10));
 		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
 	}
-#if 0
+
 	// https://tools.ietf.org/html/rfc862
 	// sudo mknod -m 777 fifo p
 	// cat fifo | netcat -l -k localhost 8000 > fifo
@@ -139,7 +138,7 @@ int test_socket()
 		s.send("GET / HTTP/1.1\r\n\r\n");
 		s >> std::cout;
 	}
-#endif // 0
+
 	{
 		winsock::tcp::client::socket<> s("www.google.com", "http");
 		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1" << "\r\n\r\n";
@@ -185,7 +184,9 @@ int test_udp_socket()
 
 	return 0;
 }
-#endif
+
+#endif // 0
+
 int main()
 {
 	/*
