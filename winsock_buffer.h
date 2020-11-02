@@ -1,12 +1,13 @@
 // buffer.h - buffer using char array, vector, iostream
 #pragma once
+#include <cstring>
 #include <Windows.h>
 
 // not really winsock specific!!!
 namespace winsock {
 
 	// RAII Windows unique HANDLE
-	// using handle = std::unique_ptr<HANDLE,decltype(&::CloseHandle)>; ???
+	// using handle = std::unique_ptr<HANDLE,decltype(&::CloseHandle)>; drags in too much interface
 	class handle {
 		HANDLE h;
 	public:
@@ -41,60 +42,8 @@ namespace winsock {
 		}
 	};
 
-	static const SYSTEM_INFO& SystemInfo()
-	{
-		static bool first = true;
-		static SYSTEM_INFO si;
-
-		if (first) {
-			GetSystemInfo(&si);
-			first = false;
-		}
-
-		return si;
-	}
-
-	// Round down to system allocation granularity
-	inline DWORD round(DWORD n)
-	{
-		DWORD ag = SystemInfo().dwAllocationGranularity;
-
-		return ag * (n / ag);
-	}
-
-	class file_view {
-		handle h;
-		void* v;
-	public:
-		/*
-		file_view(HANDLE h,
-			DWORD  flags,
-			DWORD  hi,
-			DWORD  lo,
-			SIZE_T n)
-			: h(MapViewOfFile(file, flags, hi, lo, n))
-		{ }
-		*/
-		file_view(DWORD n)
-			: h(CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, n, NULL))
-			, v(MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, SystemInfo().dwPageSize))
-		{ }
-		file_view(const file_view&) = delete;
-		file_view& operator=(const file_view&) = delete;
-		~file_view()
-		{
-			if (INVALID_HANDLE_VALUE != h) {
-				UnmapViewOfFile(h);
-			}
-		}
-		char* operator&()
-		{
-			return (char*)v;
-		}
-	};
-
-	// view on buffer of Ts
-	template<typename T>
+	// view on buffer of Ts in chunks of at most N (where N should be system page size)
+	template<typename T, size_t N = 0x1000>
 	struct buffer {
 		T* buf;
 		int len;
@@ -109,11 +58,38 @@ namespace winsock {
 			return off < len;
 		}
 
+		T& operator[](size_t i)
+		{
+			if (i >= len) {
+				throw std::runtime_error("buffer::operator[]: index out of range");
+			}
+
+			return buf[i];
+		}
+		const T& operator[](size_t i) const
+		{
+			if (i >= len) {
+				throw std::runtime_error("buffer::operator[] const: index out of range");
+			}
+
+			return buf[i];
+		}
+
+		// set offset
+		void offset(int o = 0)
+		{
+			off = o;
+		}
+
 		// buffer<B> b; while (buf = b(n)) { send(buf.buf, buf.len); }
-		// Return [off, off + n) chars
+		// Return new buffer view of [off, off + n) chars and increment offset
 		buffer operator()(size_t n = 0)
 		{
 			T* p = buf + off;
+
+			if (n > N) {
+				n = N;
+			}
 
 			// all availble data
 			if (n == 0 || off + n > len) {
@@ -129,6 +105,51 @@ namespace winsock {
 
 	};
 
-	using ibuffer = buffer<const char>;
-	using obuffer = buffer<char>;
+	struct ibuffer : public buffer<const char>
+	{
+		ibuffer(const char* buf, int len = 0)
+			: buffer<const char>(buf, len ? len : static_cast<int>(strlen(buf)))
+		{ }
+		// ibuffer b("abc") works
+		template<size_t N>
+		ibuffer(const char (&buf)[N])
+			: ibuffer(buf, N)
+		{ }
+	};
+	struct obuffer : public buffer<char>
+	{
+		obuffer(char* buf, int len = 0)
+			: buffer<char>(buf, len ? len : static_cast<int>(strlen(buf)))
+		{ }
+		void length(int l)
+		{
+			len = l;
+		}
+	};
+
+	// buffer backed by anonymous file
+	class iobuffer : public buffer<char>
+	{
+		handle h;
+	public:
+		// default to 1MB
+		iobuffer(int len = 1 << 20)
+			: buffer<char>(nullptr, len)
+			, h(CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, len, NULL))
+		{
+			if (h) {
+				buf = (char*)MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, len);
+			}
+		}
+		iobuffer(const iobuffer&) = delete;
+		iobuffer& operator=(const iobuffer&) = delete;
+		~iobuffer()
+		{
+			if (buf) {
+				UnmapViewOfFile(buf);
+			}
+		}
+	};
+
+	// ifbuffer, ofbuffer, iofbuffer for files
 }

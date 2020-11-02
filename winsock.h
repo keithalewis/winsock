@@ -158,8 +158,7 @@ namespace winsock {
 			return ::send(s, msg, len, static_cast<int>(flags));
 		}
 		// Send data in chunks of sndbuf and return total characters sent.
-		template<class B>
-		int send(const B& buf, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
+		int send(const ibuffer& buf, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
 		{
 			int len = 0;
 	
@@ -177,6 +176,7 @@ namespace winsock {
 
 			return len;
 		}
+		/*
 		template<class B>
 		socket& operator<<(B msg)
 		{
@@ -220,7 +220,7 @@ namespace winsock {
 		{
 			return istream_proxy::send(*this, flags);
 		}	
-
+		*/
 		//
 		// recv
 		//
@@ -229,7 +229,7 @@ namespace winsock {
 			return ::recv(s, buf, len, static_cast<int>(flags));
 		}
 		template<class B>
-		int recv(B& buf, RCVMSG flags = RCVMSG::DEFAULT, int rcvbuf = 0) const
+		int recv(obuffer& buf, RCVMSG flags = RCVMSG::DEFAULT, int rcvbuf = 0) const
 		{
 			int len = 0;
 
@@ -248,8 +248,8 @@ namespace winsock {
 				}
 
 				len += ret;
-				if (ret < rcv.length()) {
-					buf.resize(len);
+				if (ret < rcv.len) {
+					buf.length(len);
 
 					break;
 				}
@@ -257,7 +257,7 @@ namespace winsock {
 
 			return len;
 		}
-		
+		/*
 		template<class B>
 		socket& operator>>(obuffer<B>& buf)
 		{
@@ -308,23 +308,23 @@ namespace winsock {
 		{
 			return ostream_proxy::recv(*this, flags);
 		}
-
+		*/
 		int sendto(const char* buf, int len, SNDMSG flags, const ::sockaddr* to, int tolen)  const
 		{
 			return ::sendto(s, buf, len, static_cast<int>(flags), to, tolen);
 		}
-		int sendto(const sockaddr<af>& sa, const char* buf, int len, SNDMSG flags = SNDMSG::DEFAULT)  const//???MSG::CONFIRM
+		int sendto(const sockaddr<af>& to, const char* buf, int len, SNDMSG flags = SNDMSG::DEFAULT)  const//???MSG::CONFIRM
 		{
-			return sendto(buf, len, flags, &sa, sa.len());
+			return sendto(buf, len, flags, &to, to.len());
 		}
 
-		int recvfrom(char* buf, int len, RCVMSG flags, ::sockaddr* in, int* inlen) const
+		int recvfrom(char* buf, int len, RCVMSG flags, ::sockaddr* from, int* fromlen) const
 		{
-			return ::recvfrom(s, buf, len, static_cast<int>(flags), in, inlen);
+			return ::recvfrom(s, buf, len, static_cast<int>(flags), from, fromlen);
 		}
-		int recvfrom(sockaddr<af>& sa, char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
+		int recvfrom(sockaddr<af>& from, char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
 		{
-			return recvfrom(buf, len, flags, &sa, &sa.len());
+			return recvfrom(buf, len, flags, &from, &from.len());
 		}
 
 	};
@@ -338,8 +338,8 @@ namespace winsock {
 				using winsock::socket<af>::operator ::SOCKET;
 				using winsock::socket<af>::send;
 				using winsock::socket<af>::recv;
-				using winsock::socket<af>::operator<<;
-				using winsock::socket<af>::operator>>;
+				//using winsock::socket<af>::operator<<;
+				//using winsock::socket<af>::operator>>;
 
 				// create and connect socket
 				socket(const char* host, const char* port)
@@ -356,8 +356,8 @@ namespace winsock {
 				using winsock::socket<af>::operator ::SOCKET;
 				using winsock::socket<af>::send;
 				using winsock::socket<af>::recv;
-				using winsock::socket<af>::operator<<;
-				using winsock::socket<af>::operator>>;
+				//using winsock::socket<af>::operator<<;
+				//using winsock::socket<af>::operator>>;
 
 				// create socket and bind
 				socket(const char* host, const char* port, AI flags = AI::PASSIVE)
