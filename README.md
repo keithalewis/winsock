@@ -105,9 +105,9 @@ They are views on character arrays of known length.
 
 A buffer would not be a buffer if it did not do buffering.
 When receiving data it is not known how much data will
-eventually arrive. Instead of allocating memory and reallocating
+eventually arrive. Instead of allocating memory and then reallocating
 when necessary, we use memory mapped files and let the
-operating system do all the heavy lifting.
+operating system do the heavy lifting.
 
 The derived class `iobuffer` is a
 `buffer<char>` backed by a memory mapped anonymous file. It
