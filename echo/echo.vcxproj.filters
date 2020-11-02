@@ -15,32 +15,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="winsock.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="coro.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="winsock_enum.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="winsock_buffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="winsock_addr.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="winsock.t.cpp">
+    <ClCompile Include="echo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="buffer.t.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="README.md" />
-    <None Include="TODO.md" />
   </ItemGroup>
 </Project>

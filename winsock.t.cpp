@@ -1,7 +1,8 @@
 // winsock.t.cpp - test winsock
 #include <cassert>
 #include <cstdio>
-#include <future>
+
+#if 0
 #include "winsock.h"
 
 using namespace winsock;
@@ -65,6 +66,7 @@ int test_socket()
 		assert(0 == sockopt<SET_SO::SNDBUF>(s, 10));
 		assert(sockopt<GET_SO::SNDBUF>(s) == 10);
 	}
+
 	// https://tools.ietf.org/html/rfc862
 	// sudo mknod -m 777 fifo p
 	// cat fifo | netcat -l -k localhost 8000 > fifo
@@ -74,7 +76,9 @@ int test_socket()
 		i = s.send("hi", 2);
 		char buf[1024];
 		i = s.recv(buf, 1023);
-		buf[i] = 0;
+		if (i != SOCKET_ERROR) {
+			buf[i] = 0;
+		}
 	}
 	
 	// https://www.ietf.org/rfc/rfc5905.txt
@@ -100,7 +104,7 @@ int test_socket()
 		// time-e-wwv.nist.gov 	2610:20:6f97:97::6 	
 		i = s.connect("time-a-g.nist.gov", "13");
 		assert(i == 0);
-		char buf[1024];
+		char buf[1024] = { 0 };
 		buf[s.recv(buf, 1024)] = 0;
 		puts(buf);
 	}
@@ -134,10 +138,20 @@ int test_socket()
 		s.send("GET / HTTP/1.1\r\n\r\n");
 		s >> std::cout;
 	}
+
 	{
 		winsock::tcp::client::socket<> s("www.google.com", "http");
 		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1" << "\r\n\r\n";
+		//obuffer buf(std::ref(std::cout));
 		s >> std::cout;
+	}
+	{
+		winsock::tcp::client::socket<> s("www.google.com", "http");
+		//ibuffer buf("GET / HTTP/1.1\r\n\r\n");
+		s.send("GET / HTTP/1.1\r\n\r\n");
+		obuffer buf;
+		s.recv(buf);
+		std::cout.write(buf.data(), buf.length());
 	}
 
 	return i;
@@ -171,13 +185,17 @@ int test_udp_socket()
 	return 0;
 }
 
+#endif // 0
+
 int main()
 {
+	/*
 	test_sockaddr();
 	test_addrinfo();
 	test_hints();
 	test_socket();
 	test_udp_socket();
+	*/
 
 	return 0;
 }
