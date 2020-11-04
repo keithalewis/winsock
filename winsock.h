@@ -13,8 +13,8 @@
 #include <sstream>
 #include <utility>
 #include <vector>
-#include "winsock_buffer.h"
 #include "winsock_addr.h"
+#include "winsock_buffer.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -39,6 +39,9 @@ namespace winsock {
 	};
 	static inline const WSA wsa;
 
+	/// <summary>
+	/// Sockets parameterized by address family.
+	/// </summary>
 	template<AF af = AF::INET>
 	class socket {
 		::SOCKET s;
@@ -54,6 +57,7 @@ namespace winsock {
 		}
 		socket(const socket&) = delete;
 		socket& operator=(const socket&) = delete;
+		// moveable???
 		// may need to call shutdown first!
 		~socket()
 		{
@@ -68,12 +72,29 @@ namespace winsock {
 			return s;
 		}
 
+		/// <summary>
+		/// Retrieves the local name for a socket.
+		/// </summary>
+		/// <returns></returns>
+		/// <remarks>
+		/// Used on the bound or connected socket specified by the s parameter. 
+/// The local association is returned. This call is especially useful when a connect call has been made without doing a bind first; the getsockname function provides the only way to determine the local association that has been set by the system.
+		/// </remarks>
+		sockaddr<af> sockname() const
+		{
+			sockaddr<af> sa;
+
+			ensure (0 == ::getsockname(s, &sa, &sa.len));
+
+			return sa;
+		}
+
 		/// Address of the peer to which a socket is connected.
 		sockaddr<af> peername() const
 		{
 			sockaddr<af> sa;
 
-			::getpeername(s, &sa, &sa.len());
+			::getpeername(s, &sa, &sa.len);
 
 			return sa;
 		}
@@ -81,14 +102,25 @@ namespace winsock {
 		//
 		// server
 		//
-		// Establish the local association of the socket by assigning a local name to an unnamed socket.
+
+		/// <summary>
+		/// Establish the local association of the socket by assigning a local name to an unnamed socket.
+		/// </summary>
+		/// <param name="addr">pointer to socket address</param>
+		/// <param name="len">length of bits for the address</param>
+		/// <returns></returns>
+		/// <remarks>
+		/// The bind function is required on an unconnected socket before subsequent calls to the listen function. 
+		/// It is normally used to bind to either connection-oriented (stream) or connectionless (datagram) sockets. 
+		/// </remarks>
+		/// See <see cref="https://docs.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-bind</see>"></see>
 		int bind(const ::sockaddr* addr, int len) const
 		{
 			return ::bind(s, addr, len);
 		}		
 		int bind(const sockaddr<af>& sa) const
 		{
-			return bind(&sa, sa.len());
+			return bind(&sa, sa.len);
 		}
 		// Find appropriate sockadd.
 		int bind(const addrinfo<af>& ai) const
@@ -117,7 +149,7 @@ namespace winsock {
 		}
 		socket accept(sockaddr<af>& sa) const
 		{
-			return socket(::accept(s, &sa, &sa.len()));
+			return socket(::accept(s, &sa, &sa.len));
 		}
 		// Ignore who connected.
 		socket accept() const
@@ -134,7 +166,7 @@ namespace winsock {
 		}
 		int connect(const sockaddr<af>& sa) const
 		{
-			return ::connect(s, &sa, sa.len());
+			return ::connect(s, &sa, sa.len);
 		}
 		int connect(const addrinfo<af>& ai) const
 		{
@@ -309,7 +341,7 @@ namespace winsock {
 		}
 		int sendto(const sockaddr<af>& to, const char* buf, int len, SND_MSG flags = SND_MSG::DEFAULT)  const//???MSG::CONFIRM
 		{
-			return sendto(buf, len, flags, &to, to.len());
+			return sendto(buf, len, flags, &to, to.len);
 		}
 
 		int recvfrom(char* buf, int len, RCV_MSG flags, ::sockaddr* from, int* fromlen) const
@@ -318,7 +350,7 @@ namespace winsock {
 		}
 		int recvfrom(sockaddr<af>& from, char* buf, int len, RCV_MSG flags = RCV_MSG::DEFAULT) const
 		{
-			return recvfrom(buf, len, flags, &from, &from.len());
+			return recvfrom(buf, len, flags, &from, &from.len);
 		}
 
 	};

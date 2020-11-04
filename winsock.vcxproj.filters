@@ -35,7 +35,10 @@
     <ClCompile Include="winsock.t.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="buffer.t.cpp">
+    <ClCompile Include="winsock_buffer.t.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="winsock_addr.t.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

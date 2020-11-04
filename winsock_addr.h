@@ -8,32 +8,44 @@
 namespace winsock {
 
 	/// Value object from dotted IPv4 or IPv6 address string
+	
+	/// <summary>
+	/// A value type holding a contiguous set of bits that specify a transport address.
+	/// </summary>
+	/// <remarks>
+	/// A socket address consists of the address family of the protocol used by the socket,
+	/// the host address, and a port number.
+	/// </remarks>
 	template<AF af = AF::INET>
 	class sockaddr {
-		std::array<char, sizeof(::sockaddr)> sa;
-		int len_;
+		std::array<char, sizeof(inaddr<af>::sockaddr_type)> sa;
 	public:
-		typedef AF address_family;
-		sockaddr(int len = static_cast<int>(sizeof(::sockaddr)))
-			: sa{}, len_(len)
+		int len; // For use in socket API calls.
+
+		using address_family = AF;
+
+		sockaddr()
+			: sa{}, len(static_cast<int>(sa.size()))
 		{
-			sin().sin_family = static_cast<int>(af);
+			family(af);
 		}
-		sockaddr(INADDR addr, u_short port)
+		sockaddr(typename const inaddr<af>::addr_type& _addr, unsigned short _port)
 			: sockaddr()
 		{
-			sin().sin_addr.s_addr = static_cast<int>(addr);
-			sin().sin_port = htons(port);
+			addr(_addr);
+			port(htons(_port));
 		}
-		sockaddr(const char* host, u_short port)
+		sockaddr(const char* host, unsigned short _port)
 			: sockaddr()
 		{
-			int ret = inet_pton(static_cast<int>(af), host, (void*)&sin().sin_addr.s_addr);
+			typename inaddr<af>::addr_type _addr;
+			int ret = inet_pton(static_cast<int>(af), host, &_addr);
 			if (ret != 1) {
 				//!!! use std::system_error and WSAGetLastError()
 				throw std::runtime_error("inet_pton failed");
 			}
-			sin().sin_port = htons(port);
+			addr(_addr);
+			port(htons(_port));
 		}
 		sockaddr(const sockaddr&) = default;
 		sockaddr& operator=(const sockaddr&) = default;
@@ -42,13 +54,24 @@ namespace winsock {
 		~sockaddr()
 		{ }
 
-		auto operator<=>(const sockaddr&) const = default;
-
-		::sockaddr_in& sin()
+		bool operator==(const sockaddr& _sa) const
 		{
-			return *(::sockaddr_in*)sa.data();
+			if (len != _sa.len) {
+				return false;
+			}
+
+			for (size_t i = 0; i < len; ++i) {
+				if (sa[i] != _sa.sa[i]) {
+					return false;
+				}
+			}
+
+			return true;
 		}
 
+		/// <summary>
+		/// Cast data to raw pointer to be used with socket API functions.
+		/// </summary>
 		::sockaddr* operator&()
 		{
 			return (::sockaddr*)sa.data();
@@ -58,47 +81,54 @@ namespace winsock {
 			return (const ::sockaddr*)sa.data();
 		}
 
-		int& len()
+		/// <summary>
+		/// Cast data to appropriate address family.
+		/// </summary>
+		typename inaddr<af>::sockaddr_type& in()
 		{
-			return len_;
+			return *reinterpret_cast<typename inaddr<af>::sockaddr_type*>(sa.data());
 		}
-		int len() const
+
+		/// <summary>
+		/// Address components
+		/// </summary>
+		AF family() const
 		{
-			return len_;
+			return static_cast<AF>(inaddr<af>::family(in()));
 		}
+		void family(AF _af)
+		{
+			inaddr<af>::family(in()) = static_cast<ADDRESS_FAMILY>(_af);
+		}
+		typename const inaddr<af>::addr_type& addr() const
+		{
+			return inaddr<af>::addr(in());
+		}
+		void addr(typename const inaddr<af>::addr_type& _addr)
+		{
+			inaddr<af>::addr(in()) = _addr;
+		}
+		unsigned short port() const
+		{
+			return inaddr<af>::port(in());
+		}
+		void port(unsigned short _port)
+		{
+			inaddr<af>::port(in()) = _port;
+		}
+
 	};
 
-	/// Forward iterator over addrinfo pointers
-	class addrinfo_iter {
-		::addrinfo* pai;
-	public:
-		using iterator_category = std::forward_iterator_tag;
-		using value_type = std::pair<::sockaddr*, int>; // ai_addr and ai_addr_len
-
-		addrinfo_iter(::addrinfo* pai = nullptr)
-			: pai(pai)
-		{ }
-
-		auto operator<=>(const addrinfo_iter&) const = default;
-
-		value_type operator*() const
-		{
-			return value_type(pai->ai_addr, static_cast<int>(pai->ai_addrlen));
-		}
-		addrinfo_iter& operator++()
-		{
-			if (pai) {
-				pai = pai->ai_next;
-			}
-
-			return *this;
-		}
-	};
-
+	/// <summary>
+	/// The addrinfo class is used by the getaddrinfo function to hold host address information.
+	/// </summary>
 	template<AF af = AF::INET>
 	class addrinfo {
 		::addrinfo* pai;
 	public:
+		/// Forward iterator over addrinfo pointers
+		class addrinfo_iter;
+
 		addrinfo(::addrinfo* pai = nullptr)
 			: pai(pai)
 		{ }
@@ -157,6 +187,33 @@ namespace winsock {
 			return addrinfo_iter();
 		}
 		//!!! Add functions to get info about recommended packet size for address.
+		
+		class addrinfo_iter {
+			::addrinfo* pai;
+		public:
+			using iterator_category = std::forward_iterator_tag;
+			using value_type = std::pair<::sockaddr*, int>; // ai_addr and ai_addr_len
+
+			addrinfo_iter(::addrinfo* pai = nullptr)
+				: pai(pai)
+			{ }
+
+			auto operator<=>(const addrinfo_iter&) const = default;
+
+			value_type operator*() const
+			{
+				return value_type(pai->ai_addr, static_cast<int>(pai->ai_addrlen));
+			}
+			addrinfo_iter& operator++()
+			{
+				if (pai) {
+					pai = pai->ai_next;
+				}
+
+				return *this;
+			}
+		};
+
 	};
 
 

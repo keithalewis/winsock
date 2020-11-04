@@ -23,29 +23,6 @@ const sr data[] = {
 	}
 };
 
-int test_sockaddr()
-{
-	winsock::sockaddr<> sa(INADDR::ANY, 12345);
-	winsock::sockaddr<> sa2{ sa };
-	assert(sa2 == sa);
-	sa = sa2;
-	assert(sa == sa2);
-	assert(!(sa != sa2));
-	//assert(sa <= sa2);
-	//assert(!sa < sa2);
-
-
-	// by hand
-	::sockaddr_in sin;
-	memset(&sin, 0, sizeof(::sockaddr_in));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;
-	sin.sin_port = htons(12345);
-
-	assert(0 == memcmp(&sin, &sa, sa.len()));
-
-	return 0;
-}
 
 int test_addrinfo()
 {
@@ -187,7 +164,7 @@ int test_udp_socket()
 	srv.sendto(sa, "hi", 2);
 	winsock::sockaddr<> srvsa;
 	int ret;
-	ret = getpeername(srv, &srvsa, &srvsa.len());
+	ret = getpeername(srv, &srvsa, &srvsa.len);
 
 	udp::client::socket<> cli;
 	char buf[3];
@@ -202,7 +179,6 @@ int test_udp_socket()
 
 int main()
 {
-	test_sockaddr();
 	test_addrinfo();
 	//test_hints();
 	/*

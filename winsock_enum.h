@@ -3,19 +3,22 @@
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
-//#include <ws2def.h>
 
 namespace winsock {
 
-	// internet address
-	enum class INADDR : ULONG {
-		ANY = INADDR_ANY,
-		LOOPBACK = INADDR_LOOPBACK,
-		BROADCAST = INADDR_BROADCAST,
-		NONE = INADDR_NONE,
-	};
-
-	/// address family
+	/// <summary>
+	/// The namespace used by a socket.
+	/// </summary>
+	/// <remarks>
+	/// Every socket must specify an address family.
+	/// The address family determines how bits are packed into socket addresses.
+	/// The default namespace is <c>AF::INET</c> for IPv4 addresses.
+	/// To specify IPv6 addresses use <c>AF::INET6</c>.
+	/// The next most common address family is <c>AF::UNIX</c>
+	/// that is used to make sockets behave like pipe file descriptors.
+	/// The use of <c>AF::UNSPEC</c> is discouraged.
+	/// </remarks>
+	/// See <see cref="sockaddr"/>
 	enum class AF : int {
 		UNSPEC = AF_UNSPEC,
 		UNIX = AF_UNIX, // file name
@@ -48,6 +51,93 @@ namespace winsock {
 		IRDA = AF_IRDA,
 	};
 
+
+	/// <summary>
+	/// Predefined addresses in internet byte order.
+	/// </summary>
+	template<AF af = AF::INET> struct inaddr {
+	};
+	template<>
+	struct inaddr<AF::INET> {
+		typedef IN_ADDR type;
+		typedef sockaddr_in sockaddr_type;
+		typedef in_addr addr_type;
+		static ADDRESS_FAMILY& family(sockaddr_type& addr)
+		{
+			return addr.sin_family;
+		}
+		static addr_type& addr(sockaddr_type& addr)
+		{
+			return addr.sin_addr;
+		}
+		static auto& port(sockaddr_type& addr)
+		{
+			return addr.sin_port;
+		}
+		inline static const IN_ADDR any = in4addr_any;
+		inline static const IN_ADDR loopback = in4addr_loopback;
+		inline static const IN_ADDR broadcast = in4addr_broadcast;
+		inline static const IN_ADDR allnodesonlink = in4addr_allnodesonlink;
+		inline static const IN_ADDR allroutersonlink = in4addr_allroutersonlink;
+		inline static const IN_ADDR alligmpv3routersonlink = in4addr_alligmpv3routersonlink;
+		inline static const IN_ADDR allteredohostsonlink = in4addr_allteredohostsonlink;
+		inline static const IN_ADDR linklocalprefix = in4addr_linklocalprefix;
+		inline static const IN_ADDR multicastprefix = in4addr_multicastprefix;
+	};
+	template<>
+	struct inaddr<AF::INET6> {
+		typedef IN6_ADDR type;
+		typedef sockaddr_in6 sockaddr_type;
+		typedef in6_addr addr_type;
+		static ADDRESS_FAMILY& family(sockaddr_type& addr)
+		{
+			return addr.sin6_family;
+		}
+		static addr_type& addr(sockaddr_type& addr)
+		{
+			return addr.sin6_addr;
+		}
+		static auto& port(sockaddr_type& addr)
+		{
+			return addr.sin6_port;
+		}
+		inline static const IN6_ADDR any = in6addr_any;
+		inline static const IN6_ADDR loopback = in6addr_loopback;
+		inline static const IN6_ADDR allnodesonnode = in6addr_allnodesonnode;
+		inline static const IN6_ADDR allnodesonlink = in6addr_allnodesonlink;
+		inline static const IN6_ADDR allroutersonlink = in6addr_allroutersonlink;
+		inline static const IN6_ADDR allmldv2routersonlink = in6addr_allmldv2routersonlink;
+		inline static const IN6_ADDR teredoinitiallinklocaladdress = in6addr_teredoinitiallinklocaladdress;
+		inline static const IN6_ADDR linklocalprefix = in6addr_linklocalprefix;
+		inline static const IN6_ADDR multicastprefix = in6addr_multicastprefix;
+		inline static const IN6_ADDR solicitednodemulticastprefix = in6addr_solicitednodemulticastprefix;
+		inline static const IN6_ADDR v4mappedprefix = in6addr_v4mappedprefix;
+		inline static const IN6_ADDR _6to4prefix = in6addr_6to4prefix;
+		inline static const IN6_ADDR teredoprefix = in6addr_teredoprefix;
+		inline static const IN6_ADDR teredoprefix_old = in6addr_teredoprefix_old;
+	};
+
+	// addrinfo ai_flags for getaddrinfo
+#define AI_ENUM(X) \
+	X(PASSIVE, "Setting the AI_PASSIVE flag indicates the caller intends to use the returned socket address structure in a call to the bind function. When the AI_PASSIVE flag is set and pNodeName is a NULL pointer, the IP address portion of the socket address structure is set to INADDR_ANY for IPv4 addresses and IN6ADDR_ANY_INIT for IPv6 addresses.") \
+	X(CANONNAME, "If neither AI_CANONNAME nor AI_NUMERICHOST is used, the getaddrinfo function attempts resolution. If a literal string is passed getaddrinfo attempts to convert the string, and if a host name is passed the getaddrinfo function attempts to resolve the name to an address or multiple addresses.") \
+	X(NUMERICHOST, "When the AI_NUMERICHOST bit is set, the pNodeName parameter must contain a non-NULL numeric host address string, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
+	X(NUMERICSERV, "When the AI_NUMERICSERV bit is set, the pServiceName parameter must contain a non-NULL numeric port number, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
+	X(ADDRCONFIG, "If the AI_ADDRCONFIG bit is set, getaddrinfo will resolve only if a global address is configured. If AI_ADDRCONFIG flag is specified, IPv4 addresses shall be returned only if an IPv4 address is configured on the local system, and IPv6 addresses shall be returned only if an IPv6 address is configured on the local system. The IPv4 or IPv6 loopback address is not considered a valid global address.") \
+	X(V4MAPPED, "If the AI_V4MAPPED bit is set and a request for IPv6 addresses fails, a name service request is made for IPv4 addresses and these addresses are converted to IPv4-mapped IPv6 address format.") \
+	X(NON_AUTHORITATIVE, "If the AI_NON_AUTHORITATIVE bit is set, the NS_EMAIL namespace provider returns both authoritative and non-authoritative results. If the AI_NON_AUTHORITATIVE bit is not set, the NS_EMAIL namespace provider returns only authoritative results.") \
+	X(SECURE, "If the AI_SECURE bit is set, the NS_EMAIL namespace provider will return results that were obtained with enhanced security to minimize possible spoofing.") \
+	X(RETURN_PREFERRED_NAMES, "If the AI_RETURN_PREFERRED_NAMES is set, then no name should be provided in the pNodeName parameter. The NS_EMAIL namespace provider will return preferred names for publication.") \
+	X(FQDN, "If the AI_FQDN is set and a flat name (single label) is specified, getaddrinfo will return the fully qualified domain name that the name eventually resolved to. The fully qualified domain name is returned in the ai_canonname member in the associated addrinfo structure. This is different than AI_CANONNAME bit flag that returns the canonical name registered in DNS which may be different than the fully qualified domain name that the flat name resolved to. Only one of the AI_FQDN and AI_CANONNAME bits can be set. The getaddrinfo function will fail if both flags are present with EAI_BADFLAGS.") \
+	X(FILESERVER, "If the AI_FILESERVER is set, this is a hint to the namespace provider that the hostname being queried is being used in file share scenario. The namespace provider may ignore this hint.") \
+
+#define X(a,b) a = AI_ ## a,
+	enum class AI : int {
+		DEFAULT = 0,
+		AI_ENUM(X)
+	};
+#undef X
+
 	/// socket type
 	enum class SOCK : int {
 		STREAM = SOCK_STREAM, // tcp char stream
@@ -57,7 +147,7 @@ namespace winsock {
 		SEQPACKET = SOCK_SEQPACKET,
 	};
 
-	/// protocol IPPROTO
+	/// socket protocol
 	enum class IPPROTO : int {
 		HOPOPTS = IPPROTO_HOPOPTS,
 		ICMP = IPPROTO_ICMP,
@@ -91,7 +181,7 @@ namespace winsock {
 	};
 
 	/// Well-known ports IPPORT
-	/// Not and enum class since any unsigned short can be a port number.
+	/// Not an enum class since any unsigned short can be a port number.
 	enum IPPORT {
 		TCPMUX = IPPORT_TCPMUX,
 		ECHO = IPPORT_ECHO,
@@ -218,18 +308,18 @@ namespace winsock {
 	/// <summary>
 	///  Socket option types.
 	/// </summary>
-	template<enum GET_SO T> struct get_sol_socket_type { };
 #define GET_SO_SOCKET_TYPE(name, T, desc) template<> struct get_sol_socket_type<GET_SO::##name> { typedef T type; };
+	template<enum GET_SO T> struct get_sol_socket_type { };
 	GET_SOL_SOCKET(GET_SO_SOCKET_TYPE)
 #undef GET_SO_SOCKET_TYPE
 
-		template<enum SET_SO T> struct set_sol_socket_type { };
 #define SET_SO_SOCKET_TYPE(name, T, desc) template<> struct set_sol_socket_type<SET_SO::##name> { typedef T type; };
+	template<enum SET_SO T> struct set_sol_socket_type { };
 	SET_SOL_SOCKET(SET_SO_SOCKET_TYPE)
 #undef SET_SO_SOCKET_TYPE
 
-		/// Get socket options of known type.
-		template<enum GET_SO type>
+	/// Get socket options of known type.
+	template<enum GET_SO type>
 	inline typename get_sol_socket_type<type>::type sockopt(SOCKET s)
 	{
 		typename get_sol_socket_type<type>::type t;
@@ -247,27 +337,5 @@ namespace winsock {
 	}
 
 	//!!! inline ... linger(SOCKET s, ...)
-
-	// addrinfo ai_flags for getaddrinfo
-#define AI_ENUM(X) \
-	X(PASSIVE, "Setting the AI_PASSIVE flag indicates the caller intends to use the returned socket address structure in a call to the bind function. When the AI_PASSIVE flag is set and pNodeName is a NULL pointer, the IP address portion of the socket address structure is set to INADDR_ANY for IPv4 addresses and IN6ADDR_ANY_INIT for IPv6 addresses.") \
-	X(CANONNAME, "If neither AI_CANONNAME nor AI_NUMERICHOST is used, the getaddrinfo function attempts resolution. If a literal string is passed getaddrinfo attempts to convert the string, and if a host name is passed the getaddrinfo function attempts to resolve the name to an address or multiple addresses.") \
-	X(NUMERICHOST, "When the AI_NUMERICHOST bit is set, the pNodeName parameter must contain a non-NULL numeric host address string, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
-	X(NUMERICSERV, "When the AI_NUMERICSERV bit is set, the pServiceName parameter must contain a non-NULL numeric port number, otherwise the EAI_NONAME error is returned. This flag prevents a name resolution service from being called.") \
-	X(ADDRCONFIG, "If the AI_ADDRCONFIG bit is set, getaddrinfo will resolve only if a global address is configured. If AI_ADDRCONFIG flag is specified, IPv4 addresses shall be returned only if an IPv4 address is configured on the local system, and IPv6 addresses shall be returned only if an IPv6 address is configured on the local system. The IPv4 or IPv6 loopback address is not considered a valid global address.") \
-	X(V4MAPPED, "If the AI_V4MAPPED bit is set and a request for IPv6 addresses fails, a name service request is made for IPv4 addresses and these addresses are converted to IPv4-mapped IPv6 address format.") \
-	X(NON_AUTHORITATIVE, "If the AI_NON_AUTHORITATIVE bit is set, the NS_EMAIL namespace provider returns both authoritative and non-authoritative results. If the AI_NON_AUTHORITATIVE bit is not set, the NS_EMAIL namespace provider returns only authoritative results.") \
-	X(SECURE, "If the AI_SECURE bit is set, the NS_EMAIL namespace provider will return results that were obtained with enhanced security to minimize possible spoofing.") \
-	X(RETURN_PREFERRED_NAMES, "If the AI_RETURN_PREFERRED_NAMES is set, then no name should be provided in the pNodeName parameter. The NS_EMAIL namespace provider will return preferred names for publication.") \
-	X(FQDN, "If the AI_FQDN is set and a flat name (single label) is specified, getaddrinfo will return the fully qualified domain name that the name eventually resolved to. The fully qualified domain name is returned in the ai_canonname member in the associated addrinfo structure. This is different than AI_CANONNAME bit flag that returns the canonical name registered in DNS which may be different than the fully qualified domain name that the flat name resolved to. Only one of the AI_FQDN and AI_CANONNAME bits can be set. The getaddrinfo function will fail if both flags are present with EAI_BADFLAGS.") \
-	X(FILESERVER, "If the AI_FILESERVER is set, this is a hint to the namespace provider that the hostname being queried is being used in file share scenario. The namespace provider may ignore this hint.") \
-
-#define X(a,b) a = AI_ ## a,
-	enum class AI : int {
-		DEFAULT = 0,
-		AI_ENUM(X)
-	};
-#undef X
-
 
 }

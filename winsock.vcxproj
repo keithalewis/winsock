@@ -158,7 +158,8 @@
     <ClInclude Include="winsock_enum.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="buffer.t.cpp" />
+    <ClCompile Include="winsock_addr.t.cpp" />
+    <ClCompile Include="winsock_buffer.t.cpp" />
     <ClCompile Include="winsock.t.cpp" />
   </ItemGroup>
   <ItemGroup>
