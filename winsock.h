@@ -158,7 +158,8 @@ namespace winsock {
 			return ::send(s, msg, len, static_cast<int>(flags));
 		}
 		// Send data in chunks of sndbuf and return total characters sent.
-		int send(buffer<const char> buf, SND_MSG flags = SND_MSG::DEFAULT, int sndbuf = 0) const
+		template<class T>
+		int send(buffer<T>& buf, SND_MSG flags = SND_MSG::DEFAULT, int sndbuf = 0) const
 		{
 			int len = 0;
 	
@@ -167,7 +168,7 @@ namespace winsock {
 			}
 			
 			while (const auto snd = buf(sndbuf)) {
-				int ret = s.send(&snd, snd.len, flags);
+				int ret = send(snd.buf, snd.len, flags);
 				if (SOCKET_ERROR == ret) {
 					return ret;
 				}
@@ -228,7 +229,6 @@ namespace winsock {
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
 		}
-		template<class B>
 		int recv(buffer<char>& buf, RCV_MSG flags = RCV_MSG::DEFAULT, int rcvbuf = 0) const
 		{
 			int len = 0;
@@ -237,8 +237,8 @@ namespace winsock {
 				rcvbuf = sockopt<GET_SO::RCVBUF>(s);
 			}
 
-			while (buffer<char> rcv = buf(rcvbuf)) {
-				int ret = s.recv(&rcv, rcv.len, flags);
+			while (auto rcv = buf(rcvbuf)) {
+				int ret = recv(rcv.buf, rcv.len, flags);
 
 				if (SOCKET_ERROR == ret) {
 					return ret;
@@ -348,6 +348,8 @@ namespace winsock {
 			class socket : private winsock::socket<af> {
 			public:
 				using winsock::socket<af>::operator ::SOCKET;
+				using winsock::socket<af>::listen;
+				using winsock::socket<af>::accept;
 				using winsock::socket<af>::send;
 				using winsock::socket<af>::recv;
 				//using winsock::socket<af>::operator<<;
