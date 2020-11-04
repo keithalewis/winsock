@@ -54,20 +54,7 @@ namespace winsock {
 		~sockaddr()
 		{ }
 
-		bool operator==(const sockaddr& _sa) const
-		{
-			if (len != _sa.len) {
-				return false;
-			}
-
-			for (size_t i = 0; i < len; ++i) {
-				if (sa[i] != _sa.sa[i]) {
-					return false;
-				}
-			}
-
-			return true;
-		}
+		auto operator<=>(const sockaddr&) const = default;
 
 		/// <summary>
 		/// Cast data to raw pointer to be used with socket API functions.
