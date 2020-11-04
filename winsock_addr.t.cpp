@@ -31,3 +31,18 @@ int test_sockaddr()
 }
 int test_sockaddr_ = test_sockaddr<AF::INET>();
 int test_sockaddr6_ = test_sockaddr<AF::INET6>();
+
+int test_addrinfo()
+{
+	{
+		::addrinfo ai = winsock::addrinfo<>::hints(SOCK::STREAM, winsock::IPPROTO::TCP, AI::DEFAULT);
+		assert(ai.ai_flags == 0);
+		assert(ai.ai_family == AF_INET);
+		assert(ai.ai_socktype == SOCK_STREAM);
+		assert(ai.ai_protocol == IPPROTO_TCP);
+	}
+
+	return 0;
+}
+int test_addrinfo_ = test_addrinfo();
+

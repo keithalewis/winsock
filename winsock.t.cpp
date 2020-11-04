@@ -24,19 +24,6 @@ const sr data[] = {
 };
 
 
-int test_addrinfo()
-{
-	{
-		::addrinfo ai = winsock::addrinfo<>::hints(SOCK::STREAM, IPPROTO::TCP, AI::DEFAULT);
-		assert(ai.ai_flags == 0);
-		assert(ai.ai_family == AF_INET);
-		assert(ai.ai_socktype == SOCK_STREAM);
-		assert(ai.ai_protocol == IPPROTO_TCP);
-	}
-
-	return 0;
-}
-
 /*
 int test_hints()
 {
@@ -54,7 +41,6 @@ int test_hints()
 int test_socket()
 {
 	int i = 0;
-	static_assert(sizeof(winsock::socket<>) == sizeof(::SOCKET));
 	{
 		winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 		assert(sockopt<GET_SO::TYPE>(s) == SOCK_STREAM);
@@ -179,7 +165,6 @@ int test_udp_socket()
 
 int main()
 {
-	test_addrinfo();
 	//test_hints();
 	/*
 	test_socket();

@@ -354,6 +354,7 @@ namespace winsock {
 		}
 
 	};
+	static_assert(sizeof(winsock::socket<>) == sizeof(::SOCKET));
 
 	// Specialize default values for constructor and member functions.
 	namespace tcp {

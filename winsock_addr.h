@@ -29,23 +29,30 @@ namespace winsock {
 		{
 			family(af);
 		}
+		sockaddr(unsigned short _port)
+			: sockaddr(inaddr<af>::any, _port)
+		{
+		}
 		sockaddr(typename const inaddr<af>::addr_type& _addr, unsigned short _port)
 			: sockaddr()
 		{
 			addr(_addr);
-			port(htons(_port));
+			port(_port);
 		}
+		/// <summary>
+		/// Converts an IPv4 or IPv6 Internet network address in its standard text presentation.
+		/// </summary>
 		sockaddr(const char* host, unsigned short _port)
 			: sockaddr()
 		{
 			typename inaddr<af>::addr_type _addr;
-			int ret = inet_pton(static_cast<int>(af), host, &_addr);
+			int ret = ::inet_pton(static_cast<int>(af), host, &_addr);
 			if (ret != 1) {
 				//!!! use std::system_error and WSAGetLastError()
 				throw std::runtime_error("inet_pton failed");
 			}
 			addr(_addr);
-			port(htons(_port));
+			port(_port);
 		}
 		sockaddr(const sockaddr&) = default;
 		sockaddr& operator=(const sockaddr&) = default;
@@ -57,7 +64,7 @@ namespace winsock {
 		auto operator<=>(const sockaddr&) const = default;
 
 		/// <summary>
-		/// Cast data to raw pointer to be used with socket API functions.
+		/// Cast data to raw pointer used with socket API functions.
 		/// </summary>
 		::sockaddr* operator&()
 		{
@@ -79,6 +86,7 @@ namespace winsock {
 		/// <summary>
 		/// Address components
 		/// </summary>
+		
 		AF family() const
 		{
 			return static_cast<AF>(inaddr<af>::family(in()));
@@ -97,11 +105,11 @@ namespace winsock {
 		}
 		unsigned short port() const
 		{
-			return inaddr<af>::port(in());
+			return ::ntohs(inaddr<af>::port(in()));
 		}
 		void port(unsigned short _port)
 		{
-			inaddr<af>::port(in()) = _port;
+			inaddr<af>::port(in()) = ::htons(_port);
 		}
 
 	};
