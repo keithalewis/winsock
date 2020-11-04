@@ -30,22 +30,22 @@ A client program to send and receive a message using the TCP protocol to server
 `host` listening on `port` looks like this:
 ```C++
 tcp::client::socket s(host, port);  // connect to host on port
-buffer<std::string> msg("message"); // string backed buffer
+iobuffer msg("message"); // memory mapped anonymous buffer
 s.send(msg);
 s.recv(msg);
 ```
-The string buffer now contains the response the server gave to the message
+The buffer now contains the response the server gave to the message
 unless something went haywire.
 It is possible the server was not
 listening or it recieved the message and did not send a response.
 It is also possible the server isn't even running so your socket will
-never connect. Well written socket code takes these into account.
+never connect. Well written socket code takes all possibilities into account.
 
 A server program to echo messages sent using TCP back to the client looks like this:
 ```C++
 // bind to port 2345 on this machine with AI_PASSIVE flag
 tcp::server::socket<> s("localhost", "2345", AI::PASSIVE);
-buffer<std::vector<char>> buf; // use vector char buffer 
+iobuffer buf; 
 
 ::listen(s, SOMAXCONN); // call listen with system recommended backlog
 
@@ -58,14 +58,14 @@ while (true) {
 Server sockets call [`::bind`](https://docs.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-bind).
 The `tcp::server::socket<>` constructor creates a TCP stream socket and calls
 `bind` with the specified flag.
-A C++ `std::string` can have embedded `0` characters but `std::vector<char>` does not give `0` characters special treatment.
 The call to [`::listen`](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen)
 uses the member function `operator ::SOCKET()` to return
 the underlying `::SOCKET`. This enables a `socket<>` to be used in any socket API function. 
 It also means I can write less code. Code not written never has bugs.
 The call to [`accept`](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-accept)
-creates a new socket whenever a client connects on the bound port that needs to be closed after using it.
-The C++ class for `socket<>` does that for you when it goes out of scope.
+creates a new socket whenever a client connects on the bound port.
+The socket needs to be closed after using it and
+the C++ class for `socket<>` does that for you when it goes out of scope.
 
 This implementation has an infinite loop. A better implementation would provide a means of
 breaking out of the loop and call [`::shutdown`](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-shutdown)
@@ -74,49 +74,59 @@ That way the client can infer the server didn't simply crash.
 
 ## Buffer
 
-The `buffer<T>` class provides backing for the characters sent and received over sockets.
-It has public members `T* buf` and `int len` to be used in socket API calls.
-The private member `int off` keeps track how much of the buffer has been used.
-Sockets work best when data is sent or received in chunks appropriate to the socket.
-The member function `operator()(size_t n)` returns a `buffer` having
-at most `n` characters and increments the buffer offset.
-If `n` is `0` (or omitted) then all available buffer capacity is used.
+Buffers use `buffer_view`s to return chunks of data appropriate for sending and
+receiving on sockets. It is a struct with members `buf` pointing to character data 
+and `len` which is the `int` length of the data required by socket API functions.
 
-Buffers are designed to be used in a loop:
+The `buffer` class provides backing for the characters sent and received over sockets.
+The private member `int off` keeps track how much of the buffer has been used.
+The member function `operator()(size_t n)` returns a `buffer_view` having
+at most `n` characters starting from the offset and then increments the offset. 
+If `n` is `0` (or omitted) then all available buffer capacity is used.
+When the end of data is reached it may return a view with `len` less than `n`.
+The offset is then set to 0 for reuse. You can do this
+manually by calling the member function `reset()` if necessary.
+
+Buffers are designed to make this unnecessary when used in a loop:
 ```
-while (buffer chunk = buf(n)) {
-	// send or receive chunk
+while (buffer_view chunk = buf(n)) {
+	// send or receive chunk of size at most n
 }
+// buf offset is now 0 and ready for reuse
 ```
-Each chunk has length `n` until the penultimate chunk which has the remaining
-data. The last chunk has size `0` and `operator bool() const` returns
+Each chunk has length `n` until the penultimate chunk that gives a view on remaining
+data. The last chunk has size `0` and `buffer_view::operator bool() const` returns
 `false` to terminate the loop.
 
-Full disclosure: buffers also have a `size_t` parameter limiting the
+Full disclosure: buffers also have a `size_t` template parameter limiting the
 chunk size. The default value is `0x1000` which is the typical page
-size for memory. You can change that if you think you know what you
-are doing.
+size for memory on most operating systems. 
+You can change that if you think you know what you are doing.
 
-The derived class `ibuffer` is a `buffer<const char>` with a constructor
-from a `const char*` and its length. It is used for sending characters.
-The derived class `obuffer` is a `buffer<char>` with a constructor
-from a `char*` and its length. It is used for receiving characters. 
-They are views on character arrays of known length.
+The derived class `ibuffer` is a `buffer<const char>` with an
+additional constructor
+from a `const (&char)[N]` so `ibuffer b("abc")` can be used. 
+Input buffers are used for sending characters.
+
+The derived class `obuffer` is a `buffer<char>` and
+is used for receiving characters into a preallocated buffer
+given its length.
 
 A buffer would not be a buffer if it did not do buffering.
 When receiving data it is not known how much data will
 eventually arrive. Instead of allocating memory and then reallocating
-when necessary, we use memory mapped files and let the
-operating system do the heavy lifting.
+when more than the expected amount of data arrives, we use _memory mapped files_.
 
 The derived class `iobuffer` is a
-`buffer<char>` backed by a memory mapped anonymous file. It
+`buffer<char>` backed by an anonymous memory mapped file. It
 can be used to both send and receive characters. The constructor
-takes the maximum allowed size which is 1GB by default.
+sets `len` to the maximum allowed size, which is 1GB by default.
 Don't worry, the operating system does not allocate that
-memory until you write to it.
+memory until you write to it. If you stick to `buffer::operator()(int n)`
+to return chunks of buffer views the OS will take care of the buffering
+and an exception will be thrown if you step out of bounds.
 
-File backed buffers...
+Files can also be used to back a `buffer`. ...
 
 The buffer classes are completely independent of sockets but probably only useful when using those.
 

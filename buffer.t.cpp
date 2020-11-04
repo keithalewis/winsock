@@ -31,10 +31,13 @@ DWORD scratch()
 
 	return ret;
 }
-DWORD scratch_ = scratch();
+//DWORD scratch_ = scratch();
 
 int test_buffer()
 {
+	{
+		buffer<const char> cb;
+	}
 	{
 		char buf[3] = { 'a', 'b', 'c' };
 		ibuffer ib(buf, 3);
@@ -49,8 +52,8 @@ int test_buffer()
 			assert(c++ == *b.buf);
 		}
 		assert('d' == c);
-
-		ib.reset();
+		assert('a' == *ib.buf); // buffer resets after reading all data
+		//ib.reset();
 		const auto b = ib(100);
 		assert(3 == b.len);
 		assert(buf == b.buf);

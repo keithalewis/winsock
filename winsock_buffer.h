@@ -59,15 +59,17 @@ namespace winsock {
 	class buffer : public buffer_view<T> {
 		int off;
 	public:
+		using buffer_view<T>::buf;
+		using buffer_view<T>::len;
+
+		buffer()
+			: buffer_view<T>{ nullptr, 0 }, off(0)
+		{ }
 		buffer(T* buf, size_t len)
-			: buffer_view(buf, static_cast<int>(len)), off(0)
+			: buffer_view<T>{ buf, static_cast<int>(len) }, off(0)
 		{ }
 
-		operator bool() const override
-		{
-			return off < len;
-		}
-
+		//!!! probably a bad idea
 		T& operator[](size_t i)
 		{
 			if (i >= len) {
@@ -93,7 +95,7 @@ namespace winsock {
 
 		// buffer<B> b; while (buf = b(n)) { send(buf.buf, buf.len); }
 		// Return new buffer view of [off, off + n) chars and increment offset
-		buffer_view operator()(size_t n = 0)
+		buffer_view<T> operator()(size_t n = 0)
 		{
 			T* p = buf + off;
 
@@ -101,54 +103,55 @@ namespace winsock {
 				n = N;
 			}
 
-			// all availble data
+			// all available data
 			if (n == 0 || off + n > len) {
 				n = static_cast<size_t>(len) - off;
-				off = len;
+				off = 0; // reset for next use
 			}
 			else {
 				off += static_cast<int>(n);
 			}
 
-			return buffer_view(p, n);
+			return buffer_view{ p, static_cast<int>(n) };
 		}
 
 	};
-
+	
 	struct ibuffer : public buffer<const char>
 	{
-		ibuffer(const char* buf, int len = 0)
-			: buffer<const char>(buf, len ? len : static_cast<int>(strlen(buf)))
-		{ }
-		// ibuffer b("abc") works
+		using buffer::buffer;
+		// Allow ibuffer b("abc")
 		template<size_t N>
 		ibuffer(const char (&buf)[N])
-			: ibuffer(buf, N)
+			: buffer(buf, N - 1) // N includes terminating 0
 		{ }
 	};
-	struct obuffer : public buffer<char>
-	{
-		obuffer(char* buf, int len = 0)
-			: buffer<char>(buf, len ? len : static_cast<int>(strlen(buf)))
-		{ }
-	};
+	using obuffer = buffer<char>;
 
-	// buffer backed by anonymous memory mapped file
-	class iobuffer : public buffer<char>
+	// file backed buffer
+	template<class T = char>
+	class iobuffer : public buffer<T>
 	{
-		handle h;
+		handle m;
 	public:
-		// default to 1MB
-		iobuffer(int len = 1 << 20)
-			: buffer<char>(nullptr, len)
-			, h(CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, len, NULL))
+		using buffer<T>::buf;
+		using buffer<T>::len;
+
+		iobuffer(HANDLE h, DWORD flags, DWORD hi, DWORD lo, LPCTSTR name = nullptr)
+			: buffer<char>(nullptr, lo)
+			, m(CreateFileMapping(h, NULL, flags, hi, lo, name))
 		{
-			if (h) {
-				buf = (char*)MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, len);
+			if (m) {
+				buf = (char*)MapViewOfFile(m, FILE_MAP_ALL_ACCESS, 0, 0, len);
 			}
 		}
+		// anonymous temporary mapped file
+		iobuffer(DWORD len = 1<<20)
+			: iobuffer(INVALID_HANDLE_VALUE, PAGE_READWRITE, 0, len)
+		{ }
 		iobuffer(const iobuffer&) = delete;
 		iobuffer& operator=(const iobuffer&) = delete;
+		// movable???
 		~iobuffer()
 		{
 			if (buf) {
@@ -158,4 +161,7 @@ namespace winsock {
 	};
 
 	// ifbuffer, ofbuffer, iofbuffer for files
+	// implement iofbuffer and use for iobuffer
+	// subclass ifbuffer and ofbuffer
+	// template<class T> on iofbuffer???
 }
