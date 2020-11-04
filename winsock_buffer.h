@@ -1,6 +1,7 @@
 // buffer.h - buffer using char array, vector, iostream
 #pragma once
 #include <cstring>
+#include <stdexcept>
 #include <Windows.h>
 
 // not really winsock specific!!!
@@ -84,10 +85,10 @@ namespace winsock {
 			return buf[i];
 		}
 
-		// set offset
-		void offset(int o = 0)
+		// reset offset
+		void reset()
 		{
-			off = o;
+			off = 0;
 		}
 
 		// buffer<B> b; while (buf = b(n)) { send(buf.buf, buf.len); }
@@ -130,13 +131,9 @@ namespace winsock {
 		obuffer(char* buf, int len = 0)
 			: buffer<char>(buf, len ? len : static_cast<int>(strlen(buf)))
 		{ }
-		void length(int l)
-		{
-			len = l;
-		}
 	};
 
-	// buffer backed by anonymous file
+	// buffer backed by anonymous memory mapped file
 	class iobuffer : public buffer<char>
 	{
 		handle h;

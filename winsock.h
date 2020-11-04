@@ -1,7 +1,7 @@
 // winsock.h - Windows socket class
 #pragma once
-//#include <winsock2.h>
-//#include <ws2tcpip.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <array>
 #include <compare>
 #include <cstring>
@@ -153,12 +153,12 @@ namespace winsock {
 		//
 		// send
 		//
-		int send(const char* msg, int len, SNDMSG flags = SNDMSG::DEFAULT)
+		int send(const char* msg, int len, SND_MSG flags = SND_MSG::DEFAULT) const
 		{
 			return ::send(s, msg, len, static_cast<int>(flags));
 		}
 		// Send data in chunks of sndbuf and return total characters sent.
-		int send(const ibuffer& buf, SNDMSG flags = SNDMSG::DEFAULT, int sndbuf = 0) const
+		int send(buffer<const char> buf, SND_MSG flags = SND_MSG::DEFAULT, int sndbuf = 0) const
 		{
 			int len = 0;
 	
@@ -166,8 +166,8 @@ namespace winsock {
 				sndbuf = sockopt<GET_SO::SNDBUF>(s);
 			}
 			
-			while (const ibuffer snd = buf(sndbuf)) {
-				int ret = s.send(&snd, snd.len, static_cast<int>(flags));
+			while (const auto snd = buf(sndbuf)) {
+				int ret = s.send(&snd, snd.len, flags);
 				if (SOCKET_ERROR == ret) {
 					return ret;
 				}
@@ -177,8 +177,7 @@ namespace winsock {
 			return len;
 		}
 		/*
-		template<class B>
-		socket& operator<<(B msg)
+		socket& operator<<(std::istream& msg)
 		{
 			if (SOCKET_ERROR == send(msg)) {
 				throw std::runtime_error("winsock::socket::opertor<< failed");
@@ -189,9 +188,9 @@ namespace winsock {
 
 		// istream proxy
 		class istream_proxy {
-			SNDMSG flags;
+			SND_MSG flags;
 		public:
-			istream_proxy(const SNDMSG& flags)
+			istream_proxy(const SND_MSG& flags)
 				: flags(flags)
 			{ }
 			class send {
@@ -211,11 +210,12 @@ namespace winsock {
 				}
 			};
 		};
-		// s << flags(SNDMSG::XXX) << is ...
-		static istream_proxy flags(const SNDMSG& flags)
+		// s << flags(SND_MSG::XXX) << is ...
+		static istream_proxy flags(const SND_MSG& flags)
 		{
 			return istream_proxy(flags);
 		}
+		//!! static istream_proxy sndbuf(int)
 		typename istream_proxy::send operator<<(const istream_proxy& flags)
 		{
 			return istream_proxy::send(*this, flags);
@@ -224,12 +224,12 @@ namespace winsock {
 		//
 		// recv
 		//
-		int recv(char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
+		int recv(char* buf, int len, RCV_MSG flags = RCV_MSG::DEFAULT) const
 		{
 			return ::recv(s, buf, len, static_cast<int>(flags));
 		}
 		template<class B>
-		int recv(obuffer& buf, RCVMSG flags = RCVMSG::DEFAULT, int rcvbuf = 0) const
+		int recv(buffer<char>& buf, RCV_MSG flags = RCV_MSG::DEFAULT, int rcvbuf = 0) const
 		{
 			int len = 0;
 
@@ -237,20 +237,14 @@ namespace winsock {
 				rcvbuf = sockopt<GET_SO::RCVBUF>(s);
 			}
 
-			while (obuffer rcv = buf(rcvbuf)) {
+			while (buffer<char> rcv = buf(rcvbuf)) {
 				int ret = s.recv(&rcv, rcv.len, flags);
 
 				if (SOCKET_ERROR == ret) {
 					return ret;
 				}
-				if (0 == ret) {
-					break;
-				}
-
 				len += ret;
 				if (ret < rcv.len) {
-					buf.length(len);
-
 					break;
 				}
 			}
@@ -278,9 +272,9 @@ namespace winsock {
 
 		// ostream proxy
 		class ostream_proxy {
-			RCVMSG flags;
+			RCV_MSG flags;
 		public:
-			ostream_proxy(const RCVMSG& flags)
+			ostream_proxy(const RCV_MSG& flags)
 				: flags(flags)
 			{ }
 			class recv {
@@ -299,8 +293,8 @@ namespace winsock {
 				}
 			};
 		};
-		// s >> flags(RCVMSG::XXX) >> os ...
-		static ostream_proxy flags(const RCVMSG& flags)
+		// s >> flags(RCV_MSG::XXX) >> os ...
+		static ostream_proxy flags(const RCV_MSG& flags)
 		{
 			return ostream_proxy(flags);
 		}
@@ -309,20 +303,20 @@ namespace winsock {
 			return ostream_proxy::recv(*this, flags);
 		}
 		*/
-		int sendto(const char* buf, int len, SNDMSG flags, const ::sockaddr* to, int tolen)  const
+		int sendto(const char* buf, int len, SND_MSG flags, const ::sockaddr* to, int tolen)  const
 		{
 			return ::sendto(s, buf, len, static_cast<int>(flags), to, tolen);
 		}
-		int sendto(const sockaddr<af>& to, const char* buf, int len, SNDMSG flags = SNDMSG::DEFAULT)  const//???MSG::CONFIRM
+		int sendto(const sockaddr<af>& to, const char* buf, int len, SND_MSG flags = SND_MSG::DEFAULT)  const//???MSG::CONFIRM
 		{
 			return sendto(buf, len, flags, &to, to.len());
 		}
 
-		int recvfrom(char* buf, int len, RCVMSG flags, ::sockaddr* from, int* fromlen) const
+		int recvfrom(char* buf, int len, RCV_MSG flags, ::sockaddr* from, int* fromlen) const
 		{
 			return ::recvfrom(s, buf, len, static_cast<int>(flags), from, fromlen);
 		}
-		int recvfrom(sockaddr<af>& from, char* buf, int len, RCVMSG flags = RCVMSG::DEFAULT) const
+		int recvfrom(sockaddr<af>& from, char* buf, int len, RCV_MSG flags = RCV_MSG::DEFAULT) const
 		{
 			return recvfrom(buf, len, flags, &from, &from.len());
 		}
@@ -404,7 +398,7 @@ namespace winsock {
 	}
 	
 	/// Define bitwise operators.
-	DEFINE_ENUM_FLAG_OPERATORS(SNDMSG);
-	DEFINE_ENUM_FLAG_OPERATORS(RCVMSG);
+	DEFINE_ENUM_FLAG_OPERATORS(SND_MSG);
+	DEFINE_ENUM_FLAG_OPERATORS(RCV_MSG);
 	DEFINE_ENUM_FLAG_OPERATORS(AI);
 }

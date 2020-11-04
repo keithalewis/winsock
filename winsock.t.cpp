@@ -2,7 +2,6 @@
 #include <cassert>
 #include <cstdio>
 
-#if 0
 #include "winsock.h"
 
 using namespace winsock;
@@ -27,6 +26,14 @@ const sr data[] = {
 int test_sockaddr()
 {
 	winsock::sockaddr<> sa(INADDR::ANY, 12345);
+	winsock::sockaddr<> sa2{ sa };
+	assert(sa2 == sa);
+	sa = sa2;
+	assert(sa == sa2);
+	assert(!(sa != sa2));
+	//assert(sa <= sa2);
+	//assert(!sa < sa2);
+
 
 	// by hand
 	::sockaddr_in sin;
@@ -42,14 +49,30 @@ int test_sockaddr()
 
 int test_addrinfo()
 {
-	::addrinfo ai = winsock::addrinfo<>::hints(SOCK::STREAM, IPPROTO::TCP, AI::DEFAULT);
-	assert(ai.ai_flags == 0);
-	assert(ai.ai_family == AF_INET);
-	assert(ai.ai_socktype == SOCK_STREAM);
-	assert(ai.ai_protocol == IPPROTO_TCP);
+	{
+		::addrinfo ai = winsock::addrinfo<>::hints(SOCK::STREAM, IPPROTO::TCP, AI::DEFAULT);
+		assert(ai.ai_flags == 0);
+		assert(ai.ai_family == AF_INET);
+		assert(ai.ai_socktype == SOCK_STREAM);
+		assert(ai.ai_protocol == IPPROTO_TCP);
+	}
 
 	return 0;
 }
+
+/*
+int test_hints()
+{
+	winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
+	auto hint = s.hints();
+	auto type = sockopt<GET_SO::TYPE>(s);
+	assert(type == hint.ai_socktype);
+
+	return 0;
+}
+*/
+
+#if 0
 
 int test_socket()
 {
@@ -141,7 +164,7 @@ int test_socket()
 
 	{
 		winsock::tcp::client::socket<> s("www.google.com", "http");
-		s << winsock::socket<>::flags(SNDMSG::DEFAULT) << "GET / HTTP/1.1" << "\r\n\r\n";
+		s << winsock::socket<>::flags(SND_MSG::DEFAULT) << "GET / HTTP/1.1" << "\r\n\r\n";
 		//obuffer buf(std::ref(std::cout));
 		s >> std::cout;
 	}
@@ -155,16 +178,6 @@ int test_socket()
 	}
 
 	return i;
-}
-
-int test_hints()
-{
-	winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
-	auto hint = s.hints();
-	auto type = sockopt<GET_SO::TYPE>(s);
-	assert(type == hint.ai_socktype);
-
-	return 0;
 }
 
 int test_udp_socket()
@@ -189,10 +202,10 @@ int test_udp_socket()
 
 int main()
 {
-	/*
 	test_sockaddr();
 	test_addrinfo();
-	test_hints();
+	//test_hints();
+	/*
 	test_socket();
 	test_udp_socket();
 	*/

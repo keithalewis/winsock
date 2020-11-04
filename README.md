@@ -74,12 +74,49 @@ That way the client can infer the server didn't simply crash.
 
 ## Buffer
 
-The `buffer` class provides backing for the characters sent and received over sockets.
-The member function `operator()(size_t n)` returns a `buffer_view` class having 
-member functions `operator&()` and `length()` that provide access to at most `n` characters.
+The `buffer<T>` class provides backing for the characters sent and received over sockets.
+It has public members `T* buf` and `int len` to be used in socket API calls.
+The private member `int off` keeps track how much of the buffer has been used.
+Sockets work best when data is sent or received in chunks appropriate to the socket.
+The member function `operator()(size_t n)` returns a `buffer` having
+at most `n` characters and increments the buffer offset.
 If `n` is `0` (or omitted) then all available buffer capacity is used.
-Buffers can be backed by fixed length character arrays, strings, vectors of characters,
-files, or IO streams.
+
+Buffers are designed to be used in a loop:
+```
+while (buffer chunk = buf(n)) {
+	// send or receive chunk
+}
+```
+Each chunk has length `n` until the penultimate chunk which has the remaining
+data. The last chunk has size `0` and `operator bool() const` returns
+`false` to terminate the loop.
+
+Full disclosure: buffers also have a `size_t` parameter limiting the
+chunk size. The default value is `0x1000` which is the typical page
+size for memory. You can change that if you think you know what you
+are doing.
+
+The derived class `ibuffer` is a `buffer<const char>` with a constructor
+from a `const char*` and its length. It is used for sending characters.
+The derived class `obuffer` is a `buffer<char>` with a constructor
+from a `char*` and its length. It is used for receiving characters. 
+They are views on character arrays of known length.
+
+A buffer would not be a buffer if it did not do buffering.
+When receiving data it is not known how much data will
+eventually arrive. Instead of allocating memory and then reallocating
+when necessary, we use memory mapped files and let the
+operating system do the heavy lifting.
+
+The derived class `iobuffer` is a
+`buffer<char>` backed by a memory mapped anonymous file. It
+can be used to both send and receive characters. The constructor
+takes the maximum allowed size which is 1GB by default.
+Don't worry, the operating system does not allocate that
+memory until you write to it.
+
+File backed buffers...
 
 The buffer classes are completely independent of sockets but probably only useful when using those.
 
@@ -126,7 +163,7 @@ The constructor has two required arguments for the socket type (`SOCK`) and prot
 The class implements `operator ::SOCKET()` so a `socket` can be used in any
 function having a Windows `SOCKET` argument.
 
-The `send(const ibuffer&, SNDMSG)` and `recv(obuffer&, RCVMSG)` member functions use the buffer classes 
+The `send(const ibuffer&, SND_MSG)` and `recv(obuffer&, RCV_MSG)` member functions use the buffer classes 
 to make character data available and set flags for the 
 [`::send`](https://docs.microsoft.com/en-us/windows/win32/api/Winsock2/nf-winsock2-send) and 
 [`::recv`](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-recv) socket API function.
@@ -135,7 +172,7 @@ The member functions `operator<<(std::istream&)` and `operator>>(std::ostream&)`
 receive stream data.
 The static member function `socket<>::flags` can be used to pass flags to streams.
 
-For example, if `s` is a `socket<>` then `s << flags(SNDMSG::OOB) << "Hello";` calls
+For example, if `s` is a `socket<>` then `s << flags(SND_MSG::OOB) << "Hello";` calls
 `::send(s, "Hello", 5, MSG_OOB)`. The flags stay in effect only for the duration of
 the statement, which is a feature.
 

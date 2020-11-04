@@ -50,7 +50,7 @@ int test_buffer()
 		}
 		assert('d' == c);
 
-		ib.offset();
+		ib.reset();
 		const auto b = ib(100);
 		assert(3 == b.len);
 		assert(buf == b.buf);
@@ -77,6 +77,9 @@ int test_buffer()
 		iobuffer b;
 		memcpy_s(b.buf, 3, "ghi", 3);
 		assert(0 == strncmp("ghi", b.buf, b.len));
+		auto ob = b(4);
+		memcpy_s(ob.buf, ob.len, "jklm", 4);
+		assert(0 == strncmp("jklm", b.buf, 4));
 	}
 
 	return 0;

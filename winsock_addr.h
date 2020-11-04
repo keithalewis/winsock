@@ -1,6 +1,8 @@
 // winsock_addr.h - socket addresses
 #pragma once
+#include <array>
 #include <compare>
+#include <stdexcept>
 #include "winsock_enum.h"
 
 namespace winsock {
@@ -11,10 +13,7 @@ namespace winsock {
 		std::array<char, sizeof(::sockaddr)> sa;
 		int len_;
 	public:
-		static AF family()
-		{
-			return af;
-		}
+		typedef AF address_family;
 		sockaddr(int len = static_cast<int>(sizeof(::sockaddr)))
 			: sa{}, len_(len)
 		{
@@ -42,6 +41,8 @@ namespace winsock {
 		sockaddr& operator=(sockaddr&&) = default;
 		~sockaddr()
 		{ }
+
+		auto operator<=>(const sockaddr&) const = default;
 
 		::sockaddr_in& sin()
 		{

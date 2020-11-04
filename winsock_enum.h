@@ -139,13 +139,13 @@ namespace winsock {
 	};
 
 	/// send flags
-	enum class SNDMSG : int {
+	enum class SND_MSG : int {
 		DEFAULT = 0,
 		DONTROUTE = MSG_DONTROUTE,
 		OOB = MSG_OOB,
 	};
 	/// recv flags
-	enum class RCVMSG : int {
+	enum class RCV_MSG : int {
 		DEFAULT = 0,
 		OOB = MSG_OOB,
 		PEEK = MSG_PEEK,
