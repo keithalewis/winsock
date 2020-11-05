@@ -62,7 +62,7 @@ int test_buffer()
 		ibuffer ib("abc");
 		ibuffer ib2{ ib };
 		ib = ib2;
-		assert(ib.len == 3);
+		assert(ib.len == 4);
 		assert(0 == strncmp("abc", ib.buf, ib.len));
 	}
 	{

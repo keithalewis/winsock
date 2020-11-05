@@ -63,10 +63,14 @@ namespace winsock {
 		using buffer_view<T>::len;
 
 		buffer()
-			: buffer_view<T>{ nullptr, 0 }, off(0)
+			: buffer_view<T>{nullptr, 0}
 		{ }
 		buffer(T* buf, size_t len)
 			: buffer_view<T>{ buf, static_cast<int>(len) }, off(0)
+		{ }
+		template<size_t N>
+		buffer(T (&buf)[N])
+			: buffer_view<T>{ buf, static_cast<int>(N) }, off(0)
 		{ }
 
 		//!!! probably a bad idea
@@ -106,6 +110,7 @@ namespace winsock {
 			if (n > N) {
 				n = N;
 			}
+
 			if (n == 0 || off + n > len) {
 				// all available data
 				n = static_cast<size_t>(len) - off;
@@ -119,15 +124,7 @@ namespace winsock {
 
 	};
 	
-	struct ibuffer : public buffer<const char>
-	{
-		using buffer::buffer;
-		// Allow ibuffer b("abc")
-		template<size_t N> //!!! move to buffer<T>
-		ibuffer(const char (&buf)[N])
-			: buffer(buf, N - 1) // N includes terminating 0
-		{ }
-	};
+	using ibuffer = buffer<const char>;
 	using obuffer = buffer<char>;
 
 	// file backed buffer
