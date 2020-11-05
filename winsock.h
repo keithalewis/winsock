@@ -73,6 +73,17 @@ namespace winsock {
 		}
 
 		/// <summary>
+		/// Get address family, socket type, and protocol
+		/// </summary>
+		/// <returns></returns>
+		::addrinfo hints() const
+		{
+			::addrinfo ai;
+
+			return ai;
+		}
+
+		/// <summary>
 		/// Retrieves the local name for a socket.
 		/// </summary>
 		/// <returns></returns>
@@ -180,6 +191,10 @@ namespace winsock {
 			}
 
 			return result;
+		}
+		int connect(const char* host, const char* port) const
+		{
+			return connect(addrinfo<af>(host, port, hints()));
 		}
 
 		//

@@ -1,7 +1,7 @@
 // winsock.t.cpp - test winsock
 #include <cassert>
 #include <cstdio>
-
+#include <thread>
 #include "winsock.h"
 
 using namespace winsock;
@@ -23,6 +23,32 @@ const sr data[] = {
 	}
 };
 
+template<AF af = AF::INET>
+inline void tcp_server_echo(const char* host = "localhost", const char* port = "8888")
+{
+	tcp::server::socket<af> s(host, port, AI::PASSIVE);
+	s.listen();
+	iobuffer buf;
+	while (true) {
+		winsock::socket<af> t = s.accept();
+		t.recv(buf);
+		t.send(buf);
+	}
+}
+
+template<AF af>
+int test_tcp_server_echo()
+{
+	std::thread echo(tcp_server_echo<af>, "localhost", "6789");
+	tcp::client::socket<af> s("localhost", "6789");
+	char buf[1024];
+	buffer<char> iob(buf, 1024);
+
+	echo.join();
+
+	return 0;
+}
+int test_tcp_server_echo_ = test_tcp_server_echo<AF::INET>();
 
 /*
 int test_hints()
