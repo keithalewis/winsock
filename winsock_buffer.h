@@ -93,24 +93,26 @@ namespace winsock {
 			off = 0;
 		}
 
-		// buffer<B> b; while (buf = b(n)) { send(buf.buf, buf.len); }
+		// buffer<T> b; while (buf = b(n)) { send(buf.buf, buf.len); }
 		// Return new buffer view of [off, off + n) chars and increment offset
 		buffer_view<T> operator()(size_t n = 0)
 		{
-			T* p = buf + off;
+			if (len == off) {
+				reset();
+
+				return buffer_view<T>{};
+			}
 
 			if (n > N) {
 				n = N;
 			}
-
-			// all available data
 			if (n == 0 || off + n > len) {
+				// all available data
 				n = static_cast<size_t>(len) - off;
-				off = 0; // reset for next use
 			}
-			else {
-				off += static_cast<int>(n);
-			}
+				
+			T* p = buf + off;
+			off += static_cast<int>(n);
 
 			return buffer_view{ p, static_cast<int>(n) };
 		}
@@ -121,7 +123,7 @@ namespace winsock {
 	{
 		using buffer::buffer;
 		// Allow ibuffer b("abc")
-		template<size_t N>
+		template<size_t N> //!!! move to buffer<T>
 		ibuffer(const char (&buf)[N])
 			: buffer(buf, N - 1) // N includes terminating 0
 		{ }

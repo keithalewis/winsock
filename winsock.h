@@ -75,10 +75,21 @@ namespace winsock {
 		/// <summary>
 		/// Get address family, socket type, and protocol
 		/// </summary>
-		/// <returns></returns>
 		::addrinfo hints() const
 		{
+			WSAPROTOCOL_INFO wsapi;
+			int len = sizeof(wsapi);
 			::addrinfo ai;
+
+			memset(&ai, 0, sizeof(ai));
+
+			int result = ::getsockopt(s, SOL_SOCKET, SO_PROTOCOL_INFO, (char*)&wsapi, &len);
+			if (0 == result) {
+				ai.ai_family = wsapi.iAddressFamily;
+				ai.ai_socktype = wsapi.iSocketType;
+				ai.ai_protocol = wsapi.iProtocol;
+				ai.ai_flags = 0; //??? wsapi.dwProviderFlags;
+			}
 
 			return ai;
 		}
@@ -86,11 +97,8 @@ namespace winsock {
 		/// <summary>
 		/// Retrieves the local name for a socket.
 		/// </summary>
-		/// <returns></returns>
-		/// <remarks>
-		/// Used on the bound or connected socket specified by the s parameter. 
-/// The local association is returned. This call is especially useful when a connect call has been made without doing a bind first; the getsockname function provides the only way to determine the local association that has been set by the system.
-		/// </remarks>
+		/// This call is especially useful when a connect call has been made without doing a bind first; 
+		/// this is the only way to determine the local association that has been set by the system.
 		sockaddr<af> sockname() const
 		{
 			sockaddr<af> sa;
@@ -200,8 +208,12 @@ namespace winsock {
 		//
 		// send
 		//
-		int send(const char* msg, int len, SND_MSG flags = SND_MSG::DEFAULT) const
+		int send(const char* msg, int len = 0, SND_MSG flags = SND_MSG::DEFAULT) const
 		{
+			if (0 == len) {
+				len = static_cast<int>(strlen(msg));
+			}
+
 			return ::send(s, msg, len, static_cast<int>(flags));
 		}
 		// Send data in chunks of sndbuf and return total characters sent.
@@ -288,6 +300,8 @@ namespace winsock {
 				int ret = recv(rcv.buf, rcv.len, flags);
 
 				if (SOCKET_ERROR == ret) {
+					DWORD err;
+					err = GetLastError();
 					return ret;
 				}
 				len += ret;

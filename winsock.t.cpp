@@ -24,15 +24,18 @@ const sr data[] = {
 };
 
 template<AF af = AF::INET>
-inline void tcp_server_echo(const char* host = "localhost", const char* port = "8888")
+inline void tcp_server_echo(const char* host, const char* port)
 {
 	tcp::server::socket<af> s(host, port, AI::PASSIVE);
+	sockopt<SET_SO::REUSEADDR>(s, true);
+
 	s.listen();
 	iobuffer buf;
 	while (true) {
 		winsock::socket<af> t = s.accept();
-		t.recv(buf);
-		t.send(buf);
+		buf.reset();
+		int len = t.recv(buf);
+		t.send(buf.buf, len);
 	}
 }
 
@@ -40,11 +43,24 @@ template<AF af>
 int test_tcp_server_echo()
 {
 	std::thread echo(tcp_server_echo<af>, "localhost", "6789");
-	tcp::client::socket<af> s("localhost", "6789");
-	char buf[1024];
-	buffer<char> iob(buf, 1024);
 
-	echo.join();
+	char buf[1024];
+	obuffer ob(buf, 1024);
+
+	tcp::client::socket<af> s("localhost", "6789");
+
+	assert (3 == s.send("abc"));
+	int len = s.recv(ob);
+	assert(3 == len);
+	assert(0 == strncmp("abc", ob.buf, len));
+
+	assert (2 == s.send("de"));
+	ob.reset();
+	len = s.recv(ob);
+	assert(2 == len);
+	assert(0 == strncmp("de", ob.buf, len));
+
+	echo.detach(); // Not easy to cancel threads. Use promise/future???
 
 	return 0;
 }
