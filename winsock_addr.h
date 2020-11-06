@@ -7,8 +7,6 @@
 
 namespace winsock {
 
-	/// Value object from dotted IPv4 or IPv6 address string
-	
 	/// <summary>
 	/// A value type holding a contiguous set of bits that specify a transport address.
 	/// </summary>
@@ -40,11 +38,13 @@ namespace winsock {
 			port(_port);
 		}
 		/// <summary>
-		/// Converts an IPv4 or IPv6 Internet network address in its standard text presentation.
+		/// Converts an IPv4 or IPv6 Internet network address from its standard text presentation.
 		/// </summary>
 		sockaddr(const char* host, unsigned short _port)
 			: sockaddr()
 		{
+			// string presentation to network address
+			// https://docs.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-inet_pton
 			typename inaddr<af>::addr_type _addr;
 			int ret = ::inet_pton(static_cast<int>(af), host, &_addr);
 			if (ret != 1) {
@@ -63,6 +63,19 @@ namespace winsock {
 
 		auto operator<=>(const sockaddr&) const = default;
 
+		// network address to string presentation
+		// https://docs.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-inet_ntop
+		std::string ntop() const
+		{
+			char buf[inaddr<af>::addr_strlen];
+
+			if (nullptr == ::inet_ntop(static_cast<int>(family()), operator&(), buf, 46)) {
+				throw std::runtime_error("inet_ntop failed");
+			}
+			
+			return std::string(buf);
+		}
+
 		/// <summary>
 		/// Cast data to raw pointer used with socket API functions.
 		/// </summary>
@@ -78,9 +91,9 @@ namespace winsock {
 		/// <summary>
 		/// Cast data to appropriate address family.
 		/// </summary>
-		typename inaddr<af>::sockaddr_type& in()
+		typename inaddr<af>::sockaddr_type& in() const
 		{
-			return *reinterpret_cast<typename inaddr<af>::sockaddr_type*>(sa.data());
+			return *(typename inaddr<af>::sockaddr_type*)sa.data();
 		}
 
 		/// <summary>
@@ -130,6 +143,7 @@ namespace winsock {
 		addrinfo(PCSTR host, PCSTR port, const ::addrinfo& hints)
 		{
 			// The getaddrinfo function provides protocol-independent translation from an ANSI host name to an address.
+			// https://docs.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-getaddrinfo
 			int ret = ::getaddrinfo(host, port, &hints, &pai);
 			if (0 != ret) {
 				throw std::runtime_error(gai_strerrorA(ret)); //???lifetime
@@ -173,6 +187,7 @@ namespace winsock {
 		{
 			return pai->ai_addrlen;
 		}
+
 		addrinfo_iter begin() const
 		{
 			return addrinfo_iter(pai);
@@ -210,6 +225,5 @@ namespace winsock {
 		};
 
 	};
-
 
 }

@@ -57,11 +57,22 @@ namespace winsock {
 		}
 		socket(const socket&) = delete;
 		socket& operator=(const socket&) = delete;
-		// moveable???
-		// may need to call shutdown first!
+		socket(socket&& _s) noexcept
+		{
+			s = std::exchange(_s.s, INVALID_SOCKET);
+		}
+		socket& operator=(socket&& _s) noexcept
+		{
+			if (s != _s.s) {
+				s = std::exchange(_s.s, INVALID_SOCKET);
+			}
+
+			return *this;
+		}
 		~socket()
 		{
 			if (s != INVALID_SOCKET) {
+				// may want to call shutdown first!
 				::closesocket(s);
 			}
 		}
@@ -311,7 +322,7 @@ namespace winsock {
 			}
 
 			return len;
-		}
+  		}
 		/*
 		template<class B>
 		socket& operator>>(obuffer<B>& buf)
@@ -391,7 +402,11 @@ namespace winsock {
 			template<AF af = AF::INET>
 			class socket : private winsock::socket<af> {
 			public:
+				using winsock::socket<af>::socket;
 				using winsock::socket<af>::operator ::SOCKET;
+				using winsock::socket<af>::sockname;
+				using winsock::socket<af>::peername;
+				using winsock::socket<af>::connect;
 				using winsock::socket<af>::send;
 				using winsock::socket<af>::recv;
 				//using winsock::socket<af>::operator<<;
@@ -401,7 +416,12 @@ namespace winsock {
 				socket(const char* host, const char* port)
 					: winsock::socket<af>(SOCK::STREAM, IPPROTO::TCP)
 				{
-					winsock::socket<af>::connect(host, port);
+					connect(host, port);
+				}
+				socket(const sockaddr<af>& sa)
+					: winsock::socket<af>(SOCK::STREAM, IPPROTO::TCP)
+				{
+					connect(sa);
 				}
 			};
 		}
@@ -409,7 +429,11 @@ namespace winsock {
 			template<AF af = AF::INET>
 			class socket : private winsock::socket<af> {
 			public:
+				using winsock::socket<af>::socket;
 				using winsock::socket<af>::operator ::SOCKET;
+				using winsock::socket<af>::sockname;
+				using winsock::socket<af>::peername;
+				using winsock::socket<af>::bind;
 				using winsock::socket<af>::listen;
 				using winsock::socket<af>::accept;
 				using winsock::socket<af>::send;
@@ -421,8 +445,9 @@ namespace winsock {
 				socket(const char* host, const char* port, AI flags = AI::PASSIVE)
 					: winsock::socket<af>(SOCK::STREAM, IPPROTO::TCP)
 				{ 
+					sockopt<SET_SO::REUSEADDR>(*this, true);
 					::addrinfo hints = addrinfo<af>::hints(SOCK::STREAM, IPPROTO::TCP, flags);
-					winsock::socket<af>::bind(addrinfo<af>(host, port, hints));
+					bind(addrinfo<af>(host, port, hints));
 					//???accept, listen
 				}
 			};
@@ -435,6 +460,7 @@ namespace winsock {
 			template<AF af = AF::INET>
 			class socket : private winsock::socket<af> {
 			public:
+				using winsock::socket<af>::socket;
 				using winsock::socket<af>::operator ::SOCKET;
 				using winsock::socket<af>::sendto;
 				using winsock::socket<af>::recvfrom;

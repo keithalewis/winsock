@@ -159,8 +159,4 @@ namespace winsock {
 		}
 	};
 
-	// ifbuffer, ofbuffer, iofbuffer for files
-	// implement iofbuffer and use for iobuffer
-	// subclass ifbuffer and ofbuffer
-	// template<class T> on iofbuffer???
 }

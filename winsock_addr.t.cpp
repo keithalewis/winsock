@@ -16,6 +16,9 @@ int test_sockaddr()
 	//assert(sa <= sa2);
 	//assert(!sa < sa2);
 
+	std::string s;
+	s = sa.ntop();
+
 
 	// by hand
 	typename inaddr<af>::sockaddr_type sin;

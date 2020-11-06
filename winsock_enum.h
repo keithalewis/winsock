@@ -62,6 +62,7 @@ namespace winsock {
 		typedef IN_ADDR type;
 		typedef sockaddr_in sockaddr_type;
 		typedef in_addr addr_type;
+		inline static const size_t addr_strlen = INET_ADDRSTRLEN;
 		static ADDRESS_FAMILY& family(sockaddr_type& addr)
 		{
 			return addr.sin_family;
@@ -89,6 +90,7 @@ namespace winsock {
 		typedef IN6_ADDR type;
 		typedef sockaddr_in6 sockaddr_type;
 		typedef in6_addr addr_type;
+		inline static const size_t addr_strlen = INET6_ADDRSTRLEN;
 		static ADDRESS_FAMILY& family(sockaddr_type& addr)
 		{
 			return addr.sin6_family;

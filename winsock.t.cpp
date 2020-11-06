@@ -5,60 +5,62 @@
 #include "winsock.h"
 
 using namespace winsock;
-using winsock::socket;
 using winsock::IPPROTO;
 
-struct bl {
-	const char* buf;
+template<AF af>
+void echo_once(winsock::socket<af>&& t)
+{
 	int len;
-};
-struct sr {
-	bl send;
-	bl recv;
-};
-const sr data[] = {
-	{
-		{"foo", 3},
-		{"bar", 3}
+	char buf[1024];
+
+	if (0 < (len = t.recv(buf, 1024))) {
+		assert(len == t.send(buf, len));
 	}
-};
+
+	::shutdown(t, SD_BOTH);
+} // ~t() calls socketclose
 
 template<AF af = AF::INET>
 inline void tcp_server_echo(const char* host, const char* port)
 {
-	tcp::server::socket<af> s(host, port, AI::PASSIVE);
-	sockopt<SET_SO::REUSEADDR>(s, true);
+	tcp::server::socket<af> s(host, port, AI::PASSIVE); // create and bind
 
 	s.listen();
-	iobuffer buf;
 	while (true) {
 		winsock::socket<af> t = s.accept();
-		buf.reset();
-		int len = t.recv(buf);
-		t.send(buf.buf, len);
+		std::thread run(echo_once<af>, std::move(t));
+		run.detach(); // ~run() calls terminate if run is joinable 
 	}
+}
+
+template<AF af>
+void test_send_recv(const winsock::sockaddr<af>& sa, const char* msg, int len = 0)
+{
+	if (0 == len) {
+		len = static_cast<int>(strlen(msg));
+	}
+
+	tcp::client::socket<af> s(sa); // create and connect
+	assert(len == s.send(msg, len));
+
+	iobuffer buf;
+	assert(len == s.recv(buf));
+	assert(0 == strncmp(msg, buf.buf, len));
 }
 
 template<AF af>
 int test_tcp_server_echo()
 {
+	// start echo server
 	std::thread echo(tcp_server_echo<af>, "localhost", "6789");
 
-	char buf[1024];
-	obuffer ob(buf, 1024);
-
+	// get server address
 	tcp::client::socket<af> s("localhost", "6789");
+	winsock::sockaddr<af> srv = s.peername();
 
-	assert (3 == s.send("abc"));
-	int len = s.recv(ob);
-	assert(3 == len);
-	assert(0 == strncmp("abc", ob.buf, len));
-
-	assert (2 == s.send("de"));
-	ob.reset();
-	len = s.recv(ob);
-	assert(2 == len);
-	assert(0 == strncmp("de", ob.buf, len));
+	test_send_recv(srv, "abc", 3);
+	test_send_recv(srv, "de", 2);
+	test_send_recv(srv, "fghi", 4);
 
 	echo.detach(); // Not easy to cancel threads. Use promise/future???
 
@@ -66,17 +68,33 @@ int test_tcp_server_echo()
 }
 int test_tcp_server_echo_ = test_tcp_server_echo<AF::INET>();
 
-/*
 int test_hints()
 {
 	winsock::socket<> s(SOCK::STREAM, IPPROTO::TCP);
 	auto hint = s.hints();
+	assert(AF_INET == hint.ai_family);
 	auto type = sockopt<GET_SO::TYPE>(s);
 	assert(type == hint.ai_socktype);
+	assert(IPPROTO_TCP == hint.ai_protocol);
 
 	return 0;
 }
-*/
+int test_hints_ = test_hints();
+
+template<AF af>
+int test_constructor()
+{
+	{
+		winsock::socket<af> s(SOCK::STREAM, IPPROTO::TCP);
+		// winsock::socket<af> s2(s); // deleted
+		winsock::socket<af> s2(std::move(s));
+		// s = s2; // deleted
+	}
+
+	return 0;
+}
+int test_constructor_ = test_constructor<AF::INET>();
+int test_constructor6_ = test_constructor<AF::INET6>();
 
 #if 0
 
