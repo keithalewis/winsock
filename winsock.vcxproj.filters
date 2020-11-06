@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="winsock.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="coro.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -28,6 +25,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="winsock_addr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="winsock_socket.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

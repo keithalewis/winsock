@@ -2,7 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include <thread>
-#include "winsock.h"
+#include "winsock_socket.h"
 
 using namespace winsock;
 using winsock::IPPROTO;
@@ -33,6 +33,7 @@ inline void tcp_server_echo(const char* host, const char* port)
 	}
 }
 
+iobuffer iobuf; // up to 1MB anonymous memory mapped file
 template<AF af>
 void test_send_recv(const winsock::sockaddr<af>& sa, const char* msg, int len = 0)
 {
@@ -43,9 +44,9 @@ void test_send_recv(const winsock::sockaddr<af>& sa, const char* msg, int len = 
 	tcp::client::socket<af> s(sa); // create and connect
 	assert(len == s.send(msg, len));
 
-	iobuffer buf;
-	assert(len == s.recv(buf));
-	assert(0 == strncmp(msg, buf.buf, len));
+	iobuf.reset();
+	assert(len == s.recv(iobuf));
+	assert(0 == strncmp(msg, iobuf.buf, len));
 }
 
 template<AF af>
@@ -67,6 +68,7 @@ int test_tcp_server_echo()
 	return 0;
 }
 int test_tcp_server_echo_ = test_tcp_server_echo<AF::INET>();
+int test_tcp_server_echo6_ = test_tcp_server_echo<AF::INET6>();
 
 int test_hints()
 {
