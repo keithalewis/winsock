@@ -216,8 +216,11 @@ namespace winsock {
 			}
 			addrinfo_iter& operator++()
 			{
-				if (pai) {
+				while (pai) {
 					pai = pai->ai_next;
+					if (pai && pai->ai_family == static_cast<int>(af)) {
+						break;
+					}
 				}
 
 				return *this;

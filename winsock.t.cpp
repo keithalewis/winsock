@@ -42,7 +42,8 @@ void test_send_recv(const winsock::sockaddr<af>& sa, const char* msg, int len = 
 	}
 
 	tcp::client::socket<af> s(sa); // create and connect
-	assert(len == s.send(msg, len));
+	ibuffer ibuf(msg, len);
+	assert(len == s.send(ibuf));
 
 	iobuf.reset();
 	assert(len == s.recv(iobuf));
@@ -99,6 +100,27 @@ int test_constructor_ = test_constructor<AF::INET>();
 int test_constructor6_ = test_constructor<AF::INET6>();
 
 #if 0
+
+int test_udp_socket()
+{
+	// any addr will do
+	winsock::sockaddr<> sa(2345);
+	udp::server::socket<> srv(sa);
+	srv.sendto(sa, "hi", 2);
+	winsock::sockaddr<> srvsa;
+	int ret;
+	ret = getpeername(srv, &srvsa, &srvsa.len);
+
+	udp::client::socket<> cli;
+	char buf[3];
+	int i;
+	i = cli.recvfrom(sa, buf, 3);
+	//!!!assert(i == 2);
+
+	return 0;
+}
+int test_udp_socket_ = test_udp_socket();
+
 
 int test_socket()
 {
@@ -203,24 +225,6 @@ int test_socket()
 	}
 
 	return i;
-}
-
-int test_udp_socket()
-{
-	winsock::sockaddr<> sa(INADDR::ANY, 2345);
-	udp::server::socket<> srv(sa);
-	srv.sendto(sa, "hi", 2);
-	winsock::sockaddr<> srvsa;
-	int ret;
-	ret = getpeername(srv, &srvsa, &srvsa.len);
-
-	udp::client::socket<> cli;
-	char buf[3];
-	int i;
-	i = cli.recvfrom(sa, buf, 3);
-	//!!!assert(i == 2);
-
-	return 0;
 }
 
 #endif // 0

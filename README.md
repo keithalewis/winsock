@@ -79,6 +79,7 @@ receiving on sockets. It is a struct with members `buf` pointing to character da
 and `len` which is the `int` length of the data required by socket API functions.
 
 The `buffer` class provides backing for the characters sent and received over sockets.
+The constructor takes a character pointer and the length of the data.
 The private member `int off` keeps track how much of the buffer has been used.
 The member function `operator()(size_t n)` returns a `buffer_view` having
 at most `n` characters starting from the offset and then increments the offset. 
@@ -112,12 +113,20 @@ The derived class `obuffer` is a `buffer<char>` and
 is used for receiving characters into a preallocated buffer
 given its length.
 
+The derived class `cbuffer` allocates characters for a given length.
+Be sure to construct the class and give it a name before using it.
+The `send` and `recv` functions take references to buffers so
+they need to be l-values. You are responsible for managing the
+lifetime of a `cbuffer`. There are specializations for `icbuffer`
+and `ocbuffer` using `const char` and `char` template parameters.
+
 A buffer would not be a buffer if it did not do buffering.
 When receiving data it is not known how much data will
 eventually arrive. Instead of allocating memory and then reallocating
-when more than the expected amount of data arrives, we use _memory mapped files_.
+when more than the expected amount of data arrives, we use _memory mapped files_
+and offload buffering to the operating system.
 
-The derived class `iobuffer` is a
+By default, the derived class `iobuffer` is a
 `buffer<char>` backed by an anonymous memory mapped file. It
 can be used to both send and receive characters. The constructor
 sets `len` to the maximum allowed size, which is 1GB by default.
@@ -125,8 +134,8 @@ Don't worry, the operating system does not allocate that
 memory until you write to it. If you stick to `buffer::operator()(int n)`
 to return chunks of buffer views the OS will take care of the buffering
 and an exception will be thrown if you step out of bounds.
-
-Files can also be used to back a `buffer`. ...
+You can alse construct them from handles returned by `CreateFile`
+if you want to (eventually) do disk I/O.
 
 The buffer classes are completely independent of sockets but probably only useful when using those.
 
@@ -139,11 +148,12 @@ and an `unsigned short` port number then calls
 [inet_pton`](https://docs.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-inet_pton) 
 to parse the string into requisite bits and convert the port into appropriate byte order
 to send over a network.
-The `operator&()` and `len()` member functions supply 
+The `operator&()` member function and `int len;` member supply 
 standard socket API functions access to the low level address bits they need.
+You should never need to touch `len` since that is determined by the address family.
 
 If you know your party (IP address) and extension (port) there is no need to
-involve network calls to specify an address.
+involve network calls to specify a socket address.
 
 ## `addrinfo<AF>`
 
@@ -189,8 +199,8 @@ the statement, which is a feature.
 ## `winsock::tcp`
 
 This namespace contains classes for TCP stream sockets. 
-The TCP protocol provide guarantees about delivery. If `send`
-or `recv` return `0` then the transmission was successful.
+The TCP protocol provide guarantees about delivery. 
+If `send` or `recv` return `0` then the transmission was successful.
 There is a price to pay for this. Both ends of a TCP connection
 need to have a little chat in order to set up a socket and
 sent or received data use acknowledgements to guarantee delivery.
@@ -217,14 +227,15 @@ Since there is no need to go through the trouble of negotiating
 a network connection or waiting for acknowledgements they are much faster
 than TCP sockets.
 
-``
+```
 udp::server::socket<> s(IADDR::ANY, 1234); // create and bind
 while (0 < s.recv(sa, buf, len, MSG::WAITALL) {
-	s.sendMSG::CONFIRM) << ios;
+	s.send<< flags(MSG::CONFIRM) << ios;
 }
 ```
 
-## UDP client
+### UDP client
+
 ```
 int ret;
 sockaddr<> sa(IADDR::ANY, 1234);

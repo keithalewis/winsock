@@ -72,6 +72,9 @@ namespace winsock {
 		buffer(T (&buf)[N])
 			: buffer_view<T>{ buf, static_cast<int>(N) }, off(0)
 		{ }
+		// not virtual since derived buffer classes must be l-values
+		~buffer()
+		{ }
 
 		//!!! probably a bad idea
 		T& operator[](size_t i)
@@ -97,8 +100,8 @@ namespace winsock {
 			off = 0;
 		}
 
-		// buffer<T> b; while (buf = b(n)) { send(buf.buf, buf.len); }
-		// Return new buffer view of [off, off + n) chars and increment offset
+		// buffer<T> buf; while (snd = buf(n)) { send(snd.buf, snd.len); }
+		// Return buffer view of [off, off + n) chars and increment offset
 		buffer_view<T> operator()(size_t n = 0)
 		{
 			if (len == off) {
@@ -123,25 +126,51 @@ namespace winsock {
 		}
 
 	};
-	
 	using ibuffer = buffer<const char>;
 	using obuffer = buffer<char>;
+
+	// allocated buffer of chars
+	template<typename T>
+	struct cbuffer : public buffer<T> {
+		cbuffer(size_t n)
+			: buffer<T>(::malloc(n), static_cast<int>(n))
+		{ }
+		cbuffer(T* buf, int len = 0)
+			: buffer<T>(len)
+		{
+			if (0 == len) {
+				buffer<T>::len = static_cast<int>(::strlen(buf));
+			}
+
+			if (buffer<T>::buf) {
+				::strncpy(buffer<T>::buf, buf, buffer<T>::len);
+			}
+		}
+		cbuffer(const cbuffer&) = delete;
+		cbuffer& operator=(const cbuffer&) = delete;
+		// movable???
+		~cbuffer()
+		{
+			::free(buffer<T>::buf);
+		}
+	};
+	using icbuffer = cbuffer<const char>;
+	using ocbuffer = cbuffer<char>;
 
 	// file backed buffer
 	template<class T = char>
 	class iobuffer : public buffer<T>
 	{
-		handle m;
+		handle k;
 	public:
 		using buffer<T>::buf;
 		using buffer<T>::len;
 
 		iobuffer(HANDLE h, DWORD flags, DWORD hi, DWORD lo, LPCTSTR name = nullptr)
-			: buffer<char>(nullptr, lo)
-			, m(CreateFileMapping(h, NULL, flags, hi, lo, name))
+			: buffer<char>(nullptr, lo), k(CreateFileMapping(h, NULL, flags, hi, lo, name))
 		{
-			if (m) {
-				buf = (char*)MapViewOfFile(m, FILE_MAP_ALL_ACCESS, 0, 0, len);
+			if (k) {
+				buf = (char*)MapViewOfFile(k, FILE_MAP_ALL_ACCESS, 0, 0, len);
 			}
 		}
 		// anonymous temporary mapped file

@@ -1,4 +1,6 @@
 // winsock.h - Windows socket class
+// Examples from "UNIX Network Programming, Volume 1, Third Edition"
+// https://github.com/unpbook/unpv13e
 #pragma once
 #include <winsock2.h>
 #include <ws2tcpip.h>
